@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Alvos de Batismo - Nuvem Distrito</title>
-  
+
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -43,12 +43,11 @@
     header p { font-size: 0.85rem; opacity: 0.85; }
 
     .theme-toggle { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 36px; height: 36px; color: white; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    
+
     .logout-btn { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.2); border: none; border-radius: 8px; padding: 6px 12px; color: white; font-size: 0.8rem; cursor: pointer; }
 
     .container { padding: 16px; max-width: 480px; margin: 0 auto; }
 
-    /* Tela de Login */
     #screen-login { display: flex; align-items: center; justify-content: center; min-height: 80vh; }
     .login-card { background: var(--bg-card); border-radius: 14px; padding: 24px; width: 100%; max-width: 360px; box-shadow: var(--card-shadow); text-align: center; }
     .login-card h2 { color: #1a3a6b; margin-bottom: 8px; font-size: 1.3rem; }
@@ -70,8 +69,7 @@
     .btn-danger { background: linear-gradient(135deg, #b02020, #e05252); font-size: 0.82rem; padding: 8px; margin-top: 8px; border-radius: 8px; }
     .btn-success { background: linear-gradient(135deg, #1a6b3a, #2ec46b); font-size: 0.82rem; padding: 8px; margin-top: 8px; border-radius: 8px; }
     .btn-small { padding: 6px 12px; font-size: 0.8rem; margin-top: 0; width: auto; display: inline-block; }
-    
-    /* Restrição Visual para Editores */
+
     .admin-only { display: none; }
     body.is-admin .admin-only { display: block; }
     body.is-admin .admin-only-inline { display: inline-block; }
@@ -105,7 +103,7 @@
     .inativo-badge { display: inline-block; font-size: 0.72rem; padding: 2px 8px; border-radius: 20px; font-weight: bold; background: #ffeaa7; color: #c0392b; border: 1px solid #c0392b;}
 
     .alvo-info { font-size: 0.83rem; color: var(--text-muted); margin-top: 8px; line-height: 1.6; }
-    
+
     .historico-box { font-size: 0.8rem; color: var(--text-muted); margin-top: 10px; background: var(--input-bg); border-radius: 8px; padding: 10px; border: 1px solid var(--border-color);}
     .historico-item { border-left: 2px solid #2e6bc4; padding-left: 8px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border-color); }
     .historico-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
@@ -146,7 +144,7 @@
     .modal-overlay.open { display: flex; }
     .modal { background: var(--bg-card); border-radius: 20px 20px 0 0; padding: 20px 16px 30px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
     .modal h2 { font-size: 1rem; color: #2e6bc4; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;}
-    
+
     .user-badge { background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; display: inline-block; margin-top: 5px; }
   </style>
 </head>
@@ -287,7 +285,7 @@
           <button type="submit" class="btn">➕ Adicionar Igreja</button>
         </form>
       </div>
-      
+
       <div class="card">
         <h2>⛪ Lista de Igrejas Configuradas</h2>
         <div id="lista-config-igrejas"></div>
@@ -296,6 +294,7 @@
   </div>
 </div>
 
+<!-- MODAL DE EDIÇÃO -->
 <div class="modal-overlay" id="modal-overlay" onclick="fecharModal(event)">
   <div class="modal">
     <h2>✏️ Detalhes e Linha do Tempo</h2>
@@ -337,10 +336,15 @@
         <label>Endereço</label>
         <input type="text" id="edit-endereco" />
       </div>
-      
+      <!-- CORREÇÃO: campo edit-data adicionado -->
+      <div class="field-group">
+        <label>Data do primeiro contato</label>
+        <input type="date" id="edit-data" />
+      </div>
+
       <h3 style="font-size: 0.95rem; color: #2e6bc4; margin: 20px 0 10px;">Linha do Tempo (Histórico)</h3>
       <div id="edit-historico-lista" style="margin-bottom: 15px;"></div>
-      
+
       <div class="field-group admin-only-inline" style="width: 100%;">
         <label>Adicionar Nova Nota / Interação</label>
         <textarea id="edit-nova-nota" placeholder="Escreva o progresso de hoje..."></textarea>
@@ -373,7 +377,6 @@
     "outro-lider@gmail.com"
   ];
 
-  // Inicializa o Firebase
   firebase.initializeApp(firebaseConfig);
   var auth = firebase.auth();
   var db = firebase.firestore();
@@ -385,19 +388,32 @@
   var editandoId = null;
   var usuarioLogado = null;
 
-  // Autenticação Real-time Listener
+  // =========================================================================
+  // CORREÇÃO PRINCIPAL: função statusLabel que estava faltando
+  // =========================================================================
+  function statusLabel(status) {
+    var labels = {
+      'interessado': 'Interessado',
+      'estudando': 'Estudando a Bíblia',
+      'batizado': 'Batizado ✅',
+      'pausado': 'Pausado'
+    };
+    return labels[status] || status;
+  }
+
+  // =========================================================================
+  // AUTENTICAÇÃO
+  // =========================================================================
   auth.onAuthStateChanged(function(user) {
     if (user) {
       usuarioLogado = user;
       document.getElementById('screen-login').style.display = 'none';
       document.getElementById('app-content').style.display = 'block';
       document.getElementById('logout-btn').style.display = 'block';
-      
+
       var badge = document.getElementById('user-role-badge');
-      if (badge) {
-        badge.style.display = 'inline-block';
-      }
-      
+      if (badge) badge.style.display = 'inline-block';
+
       var contaComoAdmin = false;
       for (var a = 0; a < EMAILS_ADMINISTRADORES.length; a++) {
         if (user.email.toLowerCase() === EMAILS_ADMINISTRADORES[a].toLowerCase()) {
@@ -407,17 +423,17 @@
       }
 
       if (contaComoAdmin) {
-         document.body.classList.add('is-admin');
-         if (badge) {
-           badge.innerText = "Perfil: Administrador (Editor)";
-           badge.style.background = "#2ec46b";
-         }
+        document.body.classList.add('is-admin');
+        if (badge) {
+          badge.innerText = "Perfil: Administrador (Editor)";
+          badge.style.background = "#2ec46b";
+        }
       } else {
-         document.body.classList.remove('is-admin');
-         if (badge) {
-           badge.innerText = "Perfil: Líder do Distrito (Leitura)";
-           badge.style.background = "#f39c12";
-         }
+        document.body.classList.remove('is-admin');
+        if (badge) {
+          badge.innerText = "Perfil: Líder do Distrito (Leitura)";
+          badge.style.background = "#f39c12";
+        }
       }
 
       conectarSincronizacaoNuvem();
@@ -436,19 +452,19 @@
     e.preventDefault();
     var email = document.getElementById('login-email').value.trim();
     var pass = document.getElementById('login-password').value;
-    
     auth.signInWithEmailAndPassword(email, pass).catch(function(error) {
-       alert("Erro de autenticação: " + error.message);
+      alert("Erro de autenticação: " + error.message);
     });
   }
 
   function deslogar() {
-    if(confirm("Deseja sair do aplicativo?")) auth.signOut();
+    if (confirm("Deseja sair do aplicativo?")) auth.signOut();
   }
 
-  // Sincronização Segura e Gerenciamento de Callbacks
+  // =========================================================================
+  // SINCRONIZAÇÃO COM FIRESTORE
+  // =========================================================================
   function conectarSincronizacaoNuvem() {
-    // 1. Escutar Alvos
     db.collection("alvos").onSnapshot(function(snapshot) {
       alvos = [];
       snapshot.forEach(function(doc) {
@@ -461,7 +477,6 @@
       console.error("Erro ao ler alvos da nuvem:", error);
     });
 
-    // 2. Escutar Igrejas
     db.collection("igrejas").onSnapshot(function(snapshot) {
       igrejas = [];
       snapshot.forEach(function(doc) {
@@ -471,37 +486,38 @@
       });
       renderConfigIgrejas();
       atualizarSelectsIgreja();
-      renderLista(); // Atualiza dependências da tabela cruzada de forma estável
+      renderLista();
     });
 
-    // 3. Escutar Configuração do Distrito
     db.collection("config_distrito").doc("meta_geral").onSnapshot(function(doc) {
-      if(doc.exists) {
-         metaDistrito = doc.data().meta || 0;
-         var mInp = document.getElementById('cfg-meta-distrito');
-         if (mInp) mInp.value = metaDistrito;
+      if (doc.exists) {
+        metaDistrito = doc.data().meta || 0;
+        var mInp = document.getElementById('cfg-meta-distrito');
+        if (mInp) mInp.value = metaDistrito;
       }
       renderLista();
     });
   }
 
-  // ----------- SEGURANÇA E AUXILIARES -----------
+  // =========================================================================
+  // AUXILIARES
+  // =========================================================================
   function escapeHTML(str) {
     if (str === null || str === undefined) return '';
     return String(str).replace(/[&<>'"]/g, function(tag) {
-      var chars = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
+      var chars = { '&': '&', '<': '<', '>': '>', "'": '&#39;', '"': '&quot;' };
       return chars[tag] || tag;
     });
   }
 
   function formatarDataHoraPT(isoString) {
-    if(!isoString) return '';
+    if (!isoString) return '';
     try {
       var d = new Date(isoString);
       if (isNaN(d.getTime())) {
-         var partes = String(isoString).split('T')[0].split('-');
-         if (partes.length === 3) return partes[2] + '/' + partes[1] + '/' + partes[0];
-         return isoString;
+        var partes = String(isoString).split('T')[0].split('-');
+        if (partes.length === 3) return partes[2] + '/' + partes[1] + '/' + partes[0];
+        return isoString;
       }
       return ("0" + d.getDate()).slice(-2) + '/' + ("0" + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
     } catch(err) {
@@ -510,7 +526,7 @@
   }
 
   function calcularDiasInativo(dataISO) {
-    if(!dataISO) return 0;
+    if (!dataISO) return 0;
     try {
       var hoje = new Date().getTime();
       var dataRef = new Date(dataISO).getTime();
@@ -526,49 +542,55 @@
     for (var i = 0; i < sections.length; i++) { sections[i].classList.remove('active'); }
     var tabs = document.querySelectorAll('.tab');
     for (var j = 0; j < tabs.length; j++) { tabs[j].classList.remove('active'); }
-    
     var sTab = document.getElementById('tab-' + tab);
     var bTab = document.getElementById('tab-btn-' + tab);
-    if(sTab) sTab.classList.add('active');
-    if(bTab) bTab.classList.add('active');
+    if (sTab) sTab.classList.add('active');
+    if (bTab) bTab.classList.add('active');
     if (tab === 'lista') renderLista();
   }
 
   function salvarMetaDistrito() {
-    if(!document.body.classList.contains('is-admin')) return;
+    if (!document.body.classList.contains('is-admin')) return;
     var val = parseInt(document.getElementById('cfg-meta-distrito').value);
     var m = isNaN(val) ? 0 : val;
     db.collection("config_distrito").doc("meta_geral").set({ meta: m });
   }
 
-  // ----------- GESTÃO DE IGREJAS (NUVEM) -----------
+  // =========================================================================
+  // GESTÃO DE IGREJAS
+  // =========================================================================
   function adicionarIgreja(e) {
     e.preventDefault();
-    if(!document.body.classList.contains('is-admin')) return;
-    
+    if (!document.body.classList.contains('is-admin')) return;
     var nome = document.getElementById('cfg-nome-igreja').value.trim();
     var meta = parseInt(document.getElementById('cfg-meta-igreja').value);
     if (!nome || isNaN(meta)) return;
-
     db.collection("igrejas").add({ nome: nome, meta: meta });
     document.getElementById('form-igreja').reset();
   }
 
   function removerIgreja(id) {
-    if(!document.body.classList.contains('is-admin')) return;
+    if (!document.body.classList.contains('is-admin')) return;
     if (confirm('Excluir esta igreja do sistema de metas na nuvem?')) {
-       db.collection("igrejas").doc(id).delete();
+      db.collection("igrejas").doc(id).delete();
     }
   }
 
   function renderConfigIgrejas() {
     var lista = document.getElementById('lista-config-igrejas');
-    if(!lista) return;
-    if (igrejas.length === 0) { lista.innerHTML = '<div class="empty-msg">Nenhuma igreja configurada na nuvem.</div>'; return; }
+    if (!lista) return;
+    if (igrejas.length === 0) {
+      lista.innerHTML = '<div class="empty-msg">Nenhuma igreja configurada na nuvem.</div>';
+      return;
+    }
     var html = '';
     for (var i = 0; i < igrejas.length; i++) {
       var ig = igrejas[i];
-      html += '<div class="config-igreja-item"><div><strong style="color:var(--text-main);">' + escapeHTML(ig.nome) + '</strong><br><span style="font-size:0.8rem;color:var(--text-muted);">Alvo Local: ' + ig.meta + '</span></div><button class="btn-danger btn-small admin-only-inline" onclick="removerIgreja(\'' + ig.id + '\')">Excluir</button></div>';
+      html += '<div class="config-igreja-item" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-color);">' +
+        '<div><strong style="color:var(--text-main);">' + escapeHTML(ig.nome) + '</strong><br>' +
+        '<span style="font-size:0.8rem;color:var(--text-muted);">Alvo Local: ' + ig.meta + '</span></div>' +
+        '<button class="btn btn-danger btn-small admin-only-inline" onclick="removerIgreja(\'' + ig.id + '\')">Excluir</button>' +
+        '</div>';
     }
     lista.innerHTML = html;
   }
@@ -578,12 +600,20 @@
     var options = '';
     if (igrejas.length > 0) {
       options = '<option value="" disabled selected>Selecione...</option>';
-      for (var i = 0; i < igrejas.length; i++) { options += '<option value="' + escapeHTML(igrejas[i].nome) + '">' + escapeHTML(igrejas[i].nome) + '</option>'; }
-    } else { options = '<option value="" disabled selected>Aguardando criação de igrejas...</option>'; }
-    for (var j = 0; j < selects.length; j++) { if (selects[j]) selects[j].innerHTML = options; }
+      for (var i = 0; i < igrejas.length; i++) {
+        options += '<option value="' + escapeHTML(igrejas[i].nome) + '">' + escapeHTML(igrejas[i].nome) + '</option>';
+      }
+    } else {
+      options = '<option value="" disabled selected>Aguardando criação de igrejas...</option>';
+    }
+    for (var j = 0; j < selects.length; j++) {
+      if (selects[j]) selects[j].innerHTML = options;
+    }
   }
 
-  // ----------- DASHBOARD E FILTROS -----------
+  // =========================================================================
+  // DASHBOARD E FILTROS
+  // =========================================================================
   function filtrar(status, btn) {
     filtroAtual = status;
     var btns = document.querySelectorAll('.filter-btn');
@@ -594,38 +624,54 @@
 
   function renderMetas() {
     var container = document.getElementById('metas-container');
-    if(!container) return;
+    if (!container) return;
     var htmlIgrejas = '';
     var batizadosNoDistrito = 0;
 
-    for (var i = 0; i < alvos.length; i++) { if (alvos[i].status === 'batizado') batizadosNoDistrito++; }
+    for (var i = 0; i < alvos.length; i++) {
+      if (alvos[i].status === 'batizado') batizadosNoDistrito++;
+    }
 
     for (var k = 0; k < igrejas.length; k++) {
       var ig = igrejas[k];
       var batizadosAqui = 0;
-      for (var j = 0; j < alvos.length; j++) { if (alvos[j].igreja === ig.nome && alvos[j].status === 'batizado') batizadosAqui++; }
-      
+      for (var j = 0; j < alvos.length; j++) {
+        if (alvos[j].igreja === ig.nome && alvos[j].status === 'batizado') batizadosAqui++;
+      }
       var pctLoc = ig.meta > 0 ? Math.min((batizadosAqui / ig.meta) * 100, 100).toFixed(0) : 0;
       var faltaLoc = ig.meta - batizadosAqui;
       var isLocComplete = faltaLoc <= 0;
 
       htmlIgrejas +=
-        '<div class="igreja-stat-card"><div style="display:flex;justify-content:space-between;font-size:0.85rem;"><strong style="color:var(--text-main);">⛪ ' + escapeHTML(ig.nome) + '</strong><span style="color:' + (isLocComplete ? '#2ec46b' : 'var(--text-muted)') + ';font-weight:bold;">' + batizadosAqui + ' / ' + ig.meta + '</span></div>' +
+        '<div class="igreja-stat-card">' +
+        '<div style="display:flex;justify-content:space-between;font-size:0.85rem;">' +
+        '<strong style="color:var(--text-main);">⛪ ' + escapeHTML(ig.nome) + '</strong>' +
+        '<span style="color:' + (isLocComplete ? '#2ec46b' : 'var(--text-muted)') + ';font-weight:bold;">' + batizadosAqui + ' / ' + ig.meta + '</span></div>' +
         '<div class="progress-bar"><div class="progress-fill" style="width:' + pctLoc + '%;background:' + (isLocComplete ? '#2ec46b' : '#2e6bc4') + ';"></div></div>' +
-        '<div class="contabilidade-row"><div class="contabilidade-item">Meta: <strong>' + ig.meta + '</strong></div><div class="contabilidade-item">Feito: <strong>' + pctLoc + '%</strong></div><div class="contabilidade-item">Falta: <strong style="color:' + (isLocComplete ? '#2ec46b' : '#e74c3c') + ';">' + (isLocComplete ? 'Batida! 🎉' : faltaLoc) + '</strong></div></div></div>';
+        '<div class="contabilidade-row">' +
+        '<div class="contabilidade-item">Meta: <strong>' + ig.meta + '</strong></div>' +
+        '<div class="contabilidade-item">Feito: <strong>' + pctLoc + '%</strong></div>' +
+        '<div class="contabilidade-item">Falta: <strong style="color:' + (isLocComplete ? '#2ec46b' : '#e74c3c') + ';">' + (isLocComplete ? 'Batida! 🎉' : faltaLoc) + '</strong></div>' +
+        '</div></div>';
     }
 
     var pctDist = metaDistrito > 0 ? Math.min((batizadosNoDistrito / metaDistrito) * 100, 100).toFixed(0) : 0;
     var faltaDist = metaDistrito - batizadosNoDistrito;
     var isDistComplete = faltaDist <= 0;
-
     var htmlDistrito = '';
-    if(metaDistrito > 0) {
+
+    if (metaDistrito > 0) {
       htmlDistrito =
-        '<div class="igreja-stat-card" style="border-left-color:#2ec46b;background:rgba(46, 196, 107, 0.05);margin-bottom:20px;">' +
-        '<div style="display:flex;justify-content:space-between;font-size:0.9rem;"><strong style="color:var(--text-main);">🌟 ALVO DO DISTRITO</strong><span style="color:#2ec46b;font-weight:bold;">' + batizadosNoDistrito + ' / ' + metaDistrito + '</span></div>' +
+        '<div class="igreja-stat-card" style="border-left-color:#2ec46b;background:rgba(46,196,107,0.05);margin-bottom:20px;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:0.9rem;">' +
+        '<strong style="color:var(--text-main);">🌟 ALVO DO DISTRITO</strong>' +
+        '<span style="color:#2ec46b;font-weight:bold;">' + batizadosNoDistrito + ' / ' + metaDistrito + '</span></div>' +
         '<div class="progress-bar"><div class="progress-fill" style="width:' + pctDist + '%;background:#2ec46b;"></div></div>' +
-        '<div class="contabilidade-row" style="background:transparent; border: 1px solid rgba(46,196,107,0.2);"><div class="contabilidade-item">Alvo: <strong>' + metaDistrito + '</strong></div><div class="contabilidade-item">Progresso: <strong>' + pctDist + '%</strong></div><div class="contabilidade-item">Falta: <strong style="color:' + (isDistComplete ? '#2ec46b' : '#e74c3c') + ';">' + (isDistComplete ? 'Concluído! 🎉' : faltaDist) + '</strong></div></div></div>';
+        '<div class="contabilidade-row" style="background:transparent;border:1px solid rgba(46,196,107,0.2);">' +
+        '<div class="contabilidade-item">Alvo: <strong>' + metaDistrito + '</strong></div>' +
+        '<div class="contabilidade-item">Progresso: <strong>' + pctDist + '%</strong></div>' +
+        '<div class="contabilidade-item">Falta: <strong style="color:' + (isDistComplete ? '#2ec46b' : '#e74c3c') + ';">' + (isDistComplete ? 'Concluído! 🎉' : faltaDist) + '</strong></div>' +
+        '</div></div>';
     }
     container.innerHTML = htmlDistrito + htmlIgrejas;
   }
@@ -634,22 +680,22 @@
     var total = alvos.length;
     var batizados = 0, estudando = 0, interessados = 0, pausados = 0;
     for (var i = 0; i < alvos.length; i++) {
-      if (alvos[i].status === 'batizado') batizados++;
-      if (alvos[i].status === 'estudando') estudando++;
+      if (alvos[i].status === 'batizado')   batizados++;
+      if (alvos[i].status === 'estudando')  estudando++;
       if (alvos[i].status === 'interessado') interessados++;
-      if (alvos[i].status === 'pausado') pausados++;
+      if (alvos[i].status === 'pausado')    pausados++;
     }
 
-    var pctEstudos = total > 0 ? Math.round((estudando / total)*100) : 0;
-    var pctBatismos = total > 0 ? Math.round((batizados / total)*100) : 0;
-    
+    var pctEstudos   = total > 0 ? Math.round((estudando / total) * 100) : 0;
+    var pctBatismos  = total > 0 ? Math.round((batizados / total) * 100) : 0;
+
     var fContainer = document.getElementById('funil-container');
-    if(fContainer) {
-      fContainer.innerHTML = 
+    if (fContainer) {
+      fContainer.innerHTML =
         '<div class="funil-container">' +
           '<div class="funil-step"><div class="funil-num">' + total + '</div><div class="funil-label">Contatos</div></div>' +
           '<div class="funil-step"><div class="funil-num">' + estudando + '</div><div class="funil-label">Estudos</div><div class="funil-pct">' + pctEstudos + '%</div></div>' +
-          '<div class="funil-step"><div class="funil-num" style="color:#2ec46b">' + batizados + '</div><div class="funil-label">Batizados</div><div class="funil-pct" style="background:#2ec46b; color:white;">' + pctBatismos + '%</div></div>' +
+          '<div class="funil-step"><div class="funil-num" style="color:#2ec46b">' + batizados + '</div><div class="funil-label">Batizados</div><div class="funil-pct" style="background:#2ec46b;color:white;">' + pctBatismos + '%</div></div>' +
         '</div>';
     }
 
@@ -664,7 +710,7 @@
 
     var lista = document.getElementById('lista-alvos');
     if (!lista) return;
-    
+
     var busca = (document.getElementById('busca') ? document.getElementById('busca').value : '').toLowerCase();
     var html = '';
     var contadorExibidos = 0;
@@ -672,80 +718,86 @@
     for (var i = 0; i < alvos.length; i++) {
       var a = alvos[i];
       if (filtroAtual !== 'todos' && a.status !== filtroAtual) continue;
-      
-      var sNome = a.nome ? String(a.nome).toLowerCase() : '';
-      var sInst = a.instrutor ? String(a.instrutor).toLowerCase() : '';
-      var sIgreja = a.igreja ? String(a.igreja).toLowerCase() : '';
-      var sClasse = a.classe ? "classe " + String(a.classe).toLowerCase() : '';
-      
+
+      var sNome   = a.nome     ? String(a.nome).toLowerCase()     : '';
+      var sInst   = a.instrutor ? String(a.instrutor).toLowerCase() : '';
+      var sIgreja = a.igreja   ? String(a.igreja).toLowerCase()   : '';
+      var sClasse = a.classe   ? "classe " + String(a.classe).toLowerCase() : '';
+
       if (sNome.indexOf(busca) > -1 || sInst.indexOf(busca) > -1 || sIgreja.indexOf(busca) > -1 || sClasse.indexOf(busca) > -1) {
-         contadorExibidos++;
-         
-         var diasInativo = calcularDiasInativo(a.dataAtualizacao);
-         var isInativo = (diasInativo >= 15 && a.status !== 'batizado' && a.status !== 'pausado');
-         var cartaoCss = a.status === 'batizado' ? 'batizado' : (a.status === 'pausado' ? 'pausado' : (isInativo ? 'inativo' : ''));
-         
-         var labelClasse = a.classe ? 'Classe ' + a.classe : 'Sem Classe';
-         var classeCss = a.classe ? 'classe-' + a.classe : 'classe-nenhuma';
-         var alertaBadge = isInativo ? '<span class="inativo-badge">⚠️ Inativo há ' + diasInativo + ' dias</span>' : '';
+        contadorExibidos++;
 
-         var htmlHistorico = '';
-         if(a.historico && a.historico.length > 0) {
-           var lastIndex = a.historico.length - 1;
-           htmlHistorico = '<div class="alvo-obs"><strong>Última nota (' + formatarDataHoraPT(a.historico[lastIndex].dataISO) + '):</strong> ' + escapeHTML(a.historico[lastIndex].texto) + '</div>';
-         }
+        var diasInativo = calcularDiasInativo(a.dataAtualizacao);
+        var isInativo   = (diasInativo >= 15 && a.status !== 'batizado' && a.status !== 'pausado');
+        var cartaoCss   = a.status === 'batizado' ? 'batizado' : (a.status === 'pausado' ? 'pausado' : (isInativo ? 'inativo' : ''));
 
-         html += '<div class="alvo-card ' + cartaoCss + '">' +
-           '<div class="alvo-nome">' + escapeHTML(a.nome) + '</div>' +
-           '<div class="alvo-badges">' +
-             '<span class="alvo-status status-' + a.status + '">' + statusLabel(a.status) + '</span>' +
-             '<span class="classe-badge ' + classeCss + '">' + labelClasse + '</span>' +
-             alertaBadge +
-           '</div>' +
-           '<div class="alvo-info">' +
-             (a.igreja ? '⛪ <strong>Igreja:</strong> ' + escapeHTML(a.igreja) + '<br>' : '') +
-             (a.idade ? '👤 <strong>Idade:</strong> ' + escapeHTML(a.idade) + ' anos<br>' : '') +
-             (a.telefone ? '📞 <strong>Tel:</strong> ' + escapeHTML(a.telefone) + '<br>' : '') +
-             (a.instrutor ? '📖 <strong>Instrutor:</strong> ' + escapeHTML(a.instrutor) + '<br>' : '') +
-           '</div>' +
-           htmlHistorico +
-           '<div class="btn-row">' +
-             '<button class="btn btn-success" onclick="abrirEdicao(\'' + a.id + '\')">✏️ Ver Detalhes / Histórico</button>' +
-             '<button class="btn btn-danger btn-small admin-only-inline" onclick="excluir(\'' + a.id + '\')">🗑️ Excluir</button>' +
-           '</div>' +
-         '</div>';
+        var labelClasse = a.classe ? 'Classe ' + a.classe : 'Sem Classe';
+        var classeCss   = a.classe ? 'classe-' + a.classe : 'classe-nenhuma';
+        var alertaBadge = isInativo ? '<span class="inativo-badge">⚠️ Inativo há ' + diasInativo + ' dias</span>' : '';
+
+        var htmlHistorico = '';
+        if (a.historico && a.historico.length > 0) {
+          var lastIndex = a.historico.length - 1;
+          htmlHistorico = '<div class="alvo-obs" style="font-size:0.8rem;color:var(--text-muted);margin-top:8px;"><strong>Última nota (' + formatarDataHoraPT(a.historico[lastIndex].dataISO) + '):</strong> ' + escapeHTML(a.historico[lastIndex].texto) + '</div>';
+        }
+
+        html +=
+          '<div class="alvo-card ' + cartaoCss + '">' +
+            '<div class="alvo-nome">' + escapeHTML(a.nome) + '</div>' +
+            '<div class="alvo-badges">' +
+              '<span class="alvo-status status-' + a.status + '">' + statusLabel(a.status) + '</span>' +
+              '<span class="classe-badge ' + classeCss + '">' + labelClasse + '</span>' +
+              alertaBadge +
+            '</div>' +
+            '<div class="alvo-info">' +
+              (a.igreja    ? '⛪ <strong>Igreja:</strong> '    + escapeHTML(a.igreja)    + '<br>' : '') +
+              (a.idade     ? '👤 <strong>Idade:</strong> '     + escapeHTML(a.idade)     + ' anos<br>' : '') +
+              (a.telefone  ? '📞 <strong>Tel:</strong> '       + escapeHTML(a.telefone)  + '<br>' : '') +
+              (a.instrutor ? '📖 <strong>Instrutor:</strong> ' + escapeHTML(a.instrutor) + '<br>' : '') +
+            '</div>' +
+            htmlHistorico +
+            '<div class="btn-row">' +
+              '<button class="btn btn-success" onclick="abrirEdicao(\'' + a.id + '\')">✏️ Ver Detalhes / Histórico</button>' +
+              '<button class="btn btn-danger btn-small admin-only-inline" onclick="excluir(\'' + a.id + '\')">🗑️ Excluir</button>' +
+            '</div>' +
+          '</div>';
       }
     }
-    lista.innerHTML = (contadorExibidos === 0) ? '<div class="empty-msg">Nenhum registro encontrado na nuvem.</div>' : html;
+
+    lista.innerHTML = (contadorExibidos === 0)
+      ? '<div class="empty-msg">Nenhum registro encontrado na nuvem.</div>'
+      : html;
   }
 
-  // ----------- CRUD DE CANDIDATOS (NUVEM FIRESTORE) -----------
+  // =========================================================================
+  // CRUD
+  // =========================================================================
   function salvarAlvo(e) {
     e.preventDefault();
-    if(!document.body.classList.contains('is-admin')) return;
+    if (!document.body.classList.contains('is-admin')) return;
 
-    var nome = document.getElementById('inp-nome').value.trim();
+    var nome   = document.getElementById('inp-nome').value.trim();
     var igreja = document.getElementById('inp-igreja').value;
-    if (!nome || !igreja) return;
+    if (!nome || !igreja) { alert("Preencha o nome e selecione a igreja."); return; }
 
     var primeiraNotaText = document.getElementById('inp-obs').value.trim();
     var historicoArr = [];
-    if(primeiraNotaText !== '') {
+    if (primeiraNotaText !== '') {
       historicoArr.push({ dataISO: new Date().toISOString(), texto: primeiraNotaText });
     }
 
     var novoAlvo = {
-      nome: nome,
-      telefone: document.getElementById('inp-telefone').value.trim(),
-      idade: document.getElementById('inp-idade').value.trim(),
-      igreja: igreja,
-      classe: document.getElementById('inp-classe').value,
-      instrutor: document.getElementById('inp-instrutor').value.trim(),
-      endereco: document.getElementById('inp-endereco').value.trim(),
-      status: document.getElementById('inp-status').value,
-      data: document.getElementById('inp-data').value,
+      nome:            nome,
+      telefone:        document.getElementById('inp-telefone').value.trim(),
+      idade:           document.getElementById('inp-idade').value.trim(),
+      igreja:          igreja,
+      classe:          document.getElementById('inp-classe').value,
+      instrutor:       document.getElementById('inp-instrutor').value.trim(),
+      endereco:        document.getElementById('inp-endereco').value.trim(),
+      status:          document.getElementById('inp-status').value,
+      data:            document.getElementById('inp-data').value,
       dataAtualizacao: new Date().toISOString(),
-      historico: historicoArr
+      historico:       historicoArr
     };
 
     db.collection("alvos").add(novoAlvo).then(function() {
@@ -758,35 +810,32 @@
   }
 
   function excluir(id) {
-    if(!document.body.classList.contains('is-admin')) return;
+    if (!document.body.classList.contains('is-admin')) return;
     if (confirm('Apagar este registro da nuvem permanentemente? Todos os líderes perderão acesso.')) {
-       db.collection("alvos").doc(id).delete();
+      db.collection("alvos").doc(id).delete();
     }
   }
 
   function abrirEdicao(id) {
     editandoId = id;
     var alvo = null;
-    for(var i=0; i<alvos.length; i++) { if(alvos[i].id === id) { alvo = alvos[i]; break; } }
-    if(!alvo) return;
+    for (var i = 0; i < alvos.length; i++) { if (alvos[i].id === id) { alvo = alvos[i]; break; } }
+    if (!alvo) return;
 
-    document.getElementById('edit-nome').value = alvo.nome;
-    document.getElementById('edit-telefone').value = alvo.telefone || '';
-    document.getElementById('edit-idade').value = alvo.idade || '';
-    document.getElementById('edit-classe').value = alvo.classe || '';
+    document.getElementById('edit-nome').value      = alvo.nome      || '';
+    document.getElementById('edit-telefone').value  = alvo.telefone  || '';
+    document.getElementById('edit-idade').value     = alvo.idade     || '';
+    document.getElementById('edit-classe').value    = alvo.classe    || '';
     document.getElementById('edit-instrutor').value = alvo.instrutor || '';
-    document.getElementById('edit-endereco').value = alvo.endereco || '';
-    
-    var dInp = document.getElementById('edit-data');
-    if (dInp) dInp.value = alvo.data || '';
-    
-    // Injetar opções de status dinamicamente para bloquear quem não é admin
-    var selectStatus = document.getElementById('edit-status');
-    var isUserAdmin = document.body.classList.contains('is-admin');
-    
-    if(isUserAdmin) {
+    document.getElementById('edit-endereco').value  = alvo.endereco  || '';
+    document.getElementById('edit-data').value      = alvo.data      || '';
+
+    var selectStatus  = document.getElementById('edit-status');
+    var isUserAdmin   = document.body.classList.contains('is-admin');
+
+    if (isUserAdmin) {
       selectStatus.removeAttribute('disabled');
-      selectStatus.innerHTML = 
+      selectStatus.innerHTML =
         '<option value="interessado">Interessado</option>' +
         '<option value="estudando">Estudando a Bíblia</option>' +
         '<option value="batizado">Batizado ✅</option>' +
@@ -799,26 +848,29 @@
 
     var editIgreja = document.getElementById('edit-igreja');
     editIgreja.value = alvo.igreja || '';
-    if(!isUserAdmin) editIgreja.setAttribute('disabled', 'true'); else editIgreja.removeAttribute('disabled');
+    if (!isUserAdmin) editIgreja.setAttribute('disabled', 'true');
+    else editIgreja.removeAttribute('disabled');
 
-    // Desabilitar outros inputs se não for admin
     var inputs = ['edit-nome', 'edit-telefone', 'edit-idade', 'edit-classe', 'edit-instrutor', 'edit-endereco', 'edit-data'];
-    for(var x=0; x<inputs.length; x++) {
+    for (var x = 0; x < inputs.length; x++) {
       var targetInp = document.getElementById(inputs[x]);
       if (targetInp) {
-        if(!isUserAdmin) targetInp.setAttribute('disabled', 'true');
+        if (!isUserAdmin) targetInp.setAttribute('disabled', 'true');
         else targetInp.removeAttribute('disabled');
       }
     }
 
-    // Renderizar Histórico
     var histContainer = document.getElementById('edit-historico-lista');
-    if(!alvo.historico || alvo.historico.length === 0) {
-      histContainer.innerHTML = '<div style="font-size:0.8rem; font-style:italic; color:var(--text-muted);">Nenhuma nota registrada na jornada.</div>';
+    if (!alvo.historico || alvo.historico.length === 0) {
+      histContainer.innerHTML = '<div style="font-size:0.8rem;font-style:italic;color:var(--text-muted);">Nenhuma nota registrada na jornada.</div>';
     } else {
       var histHtml = '<div class="historico-box">';
-      for(var h = 0; h < alvo.historico.length; h++) {
-        histHtml += '<div class="historico-item"><div class="historico-data">' + formatarDataHoraPT(alvo.historico[h].dataISO) + '</div><div>' + escapeHTML(alvo.historico[h].texto) + '</div></div>';
+      for (var h = 0; h < alvo.historico.length; h++) {
+        histHtml +=
+          '<div class="historico-item">' +
+            '<div class="historico-data">' + formatarDataHoraPT(alvo.historico[h].dataISO) + '</div>' +
+            '<div>' + escapeHTML(alvo.historico[h].texto) + '</div>' +
+          '</div>';
       }
       histHtml += '</div>';
       histContainer.innerHTML = histHtml;
@@ -834,68 +886,72 @@
     document.body.classList.remove('modal-open');
     editandoId = null;
   }
-  function fecharModal(event) { if (event.target === document.getElementById('modal-overlay')) { forcarFecharModal(); } }
+
+  function fecharModal(event) {
+    if (event.target === document.getElementById('modal-overlay')) { forcarFecharModal(); }
+  }
 
   function salvarEdicao(e) {
     e.preventDefault();
-    if(!document.body.classList.contains('is-admin')) return;
+    if (!document.body.classList.contains('is-admin')) return;
 
     var idx = -1;
-    for(var i=0; i<alvos.length; i++) { if(alvos[i].id === editandoId) { idx = i; break; } }
-    if(idx === -1) return;
+    for (var i = 0; i < alvos.length; i++) { if (alvos[i].id === editandoId) { idx = i; break; } }
+    if (idx === -1) return;
 
-    var nome = document.getElementById('edit-nome').value.trim();
+    var nome   = document.getElementById('edit-nome').value.trim();
     var igreja = document.getElementById('edit-igreja').value;
-    if(!nome || !igreja) return;
+    if (!nome || !igreja) { alert("Nome e Igreja são obrigatórios."); return; }
 
     var updateData = {
-      nome: nome,
-      telefone: document.getElementById('edit-telefone').value.trim(),
-      idade: document.getElementById('edit-idade').value.trim(),
-      igreja: igreja,
-      classe: document.getElementById('edit-classe').value,
-      instrutor: document.getElementById('edit-instrutor').value.trim(),
-      endereco: document.getElementById('edit-endereco').value.trim(),
-      status: document.getElementById('edit-status').value,
-      data: document.getElementById('edit-data').value,
+      nome:            nome,
+      telefone:        document.getElementById('edit-telefone').value.trim(),
+      idade:           document.getElementById('edit-idade').value.trim(),
+      igreja:          igreja,
+      classe:          document.getElementById('edit-classe').value,
+      instrutor:       document.getElementById('edit-instrutor').value.trim(),
+      endereco:        document.getElementById('edit-endereco').value.trim(),
+      status:          document.getElementById('edit-status').value,
+      data:            document.getElementById('edit-data').value,
+      dataAtualizacao: new Date().toISOString()
     };
 
-    var novaNota = document.getElementById('edit-nova-nota').value.trim();
+    var novaNota  = document.getElementById('edit-nova-nota').value.trim();
     var histAtual = alvos[idx].historico || [];
-    
-    if(novaNota !== '') {
+
+    if (novaNota !== '') {
       histAtual.push({ dataISO: new Date().toISOString(), texto: novaNota });
       updateData.historico = histAtual;
-      updateData.dataAtualizacao = new Date().toISOString(); // Reseta alerta
-    } else {
-      updateData.dataAtualizacao = new Date().toISOString();
     }
 
     db.collection("alvos").doc(editandoId).update(updateData).then(function() {
       forcarFecharModal();
     }).catch(function(err) {
-      alert("Erro ao atualizar edicao: " + err.message);
+      alert("Erro ao atualizar: " + err.message);
     });
   }
 
-  // ----------- UTILS DE TEMA -----------
+  // =========================================================================
+  // TEMA
+  // =========================================================================
   function toggleTheme() {
-    var isDark = document.body.getAttribute('data-theme') === 'dark';
+    var isDark   = document.body.getAttribute('data-theme') === 'dark';
     var newTheme = isDark ? 'light' : 'dark';
     localStorage.setItem('tema_alvos', newTheme);
     applyTheme(newTheme);
   }
+
   function applyTheme(theme) {
-    if(theme === 'dark') {
+    var tBtn = document.getElementById('theme-btn');
+    if (theme === 'dark') {
       document.body.setAttribute('data-theme', 'dark');
-      var tBtn = document.getElementById('theme-btn');
       if (tBtn) tBtn.innerText = '☀️';
     } else {
       document.body.removeAttribute('data-theme');
-      var tBtn = document.getElementById('theme-btn');
       if (tBtn) tBtn.innerText = '🌙';
     }
   }
+
   var savedTheme = localStorage.getItem('tema_alvos') || 'light';
   applyTheme(savedTheme);
 </script>
