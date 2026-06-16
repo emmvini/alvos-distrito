@@ -394,9 +394,10 @@
       document.getElementById('logout-btn').style.display = 'block';
       
       var badge = document.getElementById('user-role-badge');
-      badge.style.display = 'inline-block';
+      if (badge) {
+        badge.style.display = 'inline-block';
+      }
       
-      // Verifica se o e-mail de quem entrou está na lista de admins
       var contaComoAdmin = false;
       for (var a = 0; a < EMAILS_ADMINISTRADORES.length; a++) {
         if (user.email.toLowerCase() === EMAILS_ADMINISTRADORES[a].toLowerCase()) {
@@ -407,12 +408,16 @@
 
       if (contaComoAdmin) {
          document.body.classList.add('is-admin');
-         badge.innerText = "Perfil: Administrador (Editor)";
-         badge.style.background = "#2ec46b";
+         if (badge) {
+           badge.innerText = "Perfil: Administrador (Editor)";
+           badge.style.background = "#2ec46b";
+         }
       } else {
          document.body.classList.remove('is-admin');
-         badge.innerText = "Perfil: Líder do Distrito (Leitura)";
-         badge.style.background = "#f39c12";
+         if (badge) {
+           badge.innerText = "Perfil: Líder do Distrito (Leitura)";
+           badge.style.background = "#f39c12";
+         }
       }
 
       conectarSincronizacaoNuvem();
@@ -422,7 +427,8 @@
       document.getElementById('screen-login').style.display = 'flex';
       document.getElementById('app-content').style.display = 'none';
       document.getElementById('logout-btn').style.display = 'none';
-      document.getElementById('user-role-badge').style.display = 'none';
+      var badge = document.getElementById('user-role-badge');
+      if (badge) badge.style.display = 'none';
     }
   });
 
@@ -440,7 +446,7 @@
     if(confirm("Deseja sair do aplicativo?")) auth.signOut();
   }
 
-  // Sincronização em Tempo Real (A Mágica da Nuvem Firestore)
+  // Sincronização Segura e Gerenciamento de Callbacks
   function conectarSincronizacaoNuvem() {
     // 1. Escutar Alvos
     db.collection("alvos").orderBy("dataAtualizacao", "desc").onSnapshot(function(snapshot) {
@@ -465,16 +471,17 @@
       });
       renderConfigIgrejas();
       atualizarSelectsIgreja();
-      renderMetas();
+      renderLista(); // Atualiza dependências da tabela cruzada de forma estável
     });
 
     // 3. Escutar Configuração do Distrito
     db.collection("config_distrito").doc("meta_geral").onSnapshot(function(doc) {
       if(doc.exists) {
          metaDistrito = doc.data().meta || 0;
-         document.getElementById('cfg-meta-distrito').value = metaDistrito;
+         var mInp = document.getElementById('cfg-meta-distrito');
+         if (mInp) mInp.value = metaDistrito;
       }
-      renderMetas();
+      renderLista();
     });
   }
 
@@ -489,13 +496,29 @@
 
   function formatarDataHoraPT(isoString) {
     if(!isoString) return '';
-    var d = new Date(isoString);
-    return ("0" + d.getDate()).slice(-2) + '/' + ("0" + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+    try {
+      var d = new Date(isoString);
+      if (isNaN(d.getTime())) {
+         var partes = String(isoString).split('T')[0].split('-');
+         if (partes.length === 3) return partes[2] + '/' + partes[1] + '/' + partes[0];
+         return isoString;
+      }
+      return ("0" + d.getDate()).slice(-2) + '/' + ("0" + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+    } catch(err) {
+      return isoString;
+    }
   }
 
   function calcularDiasInativo(dataISO) {
     if(!dataISO) return 0;
-    return Math.floor((new Date().getTime() - new Date(dataISO).getTime()) / (1000 * 3600 * 24));
+    try {
+      var hoje = new Date().getTime();
+      var dataRef = new Date(dataISO).getTime();
+      if (isNaN(dataRef)) return 0;
+      return Math.floor((hoje - dataRef) / (1000 * 3600 * 24));
+    } catch(err) {
+      return 0;
+    }
   }
 
   function showTab(tab) {
@@ -504,8 +527,10 @@
     var tabs = document.querySelectorAll('.tab');
     for (var j = 0; j < tabs.length; j++) { tabs[j].classList.remove('active'); }
     
-    document.getElementById('tab-' + tab).classList.add('active');
-    document.getElementById('tab-btn-' + tab).classList.add('active');
+    var sTab = document.getElementById('tab-' + tab);
+    var bTab = document.getElementById('tab-btn-' + tab);
+    if(sTab) sTab.classList.add('active');
+    if(bTab) bTab.classList.add('active');
     if (tab === 'lista') renderLista();
   }
 
@@ -538,6 +563,7 @@
 
   function renderConfigIgrejas() {
     var lista = document.getElementById('lista-config-igrejas');
+    if(!lista) return;
     if (igrejas.length === 0) { lista.innerHTML = '<div class="empty-msg">Nenhuma igreja configurada na nuvem.</div>'; return; }
     var html = '';
     for (var i = 0; i < igrejas.length; i++) {
@@ -568,6 +594,7 @@
 
   function renderMetas() {
     var container = document.getElementById('metas-container');
+    if(!container) return;
     var htmlIgrejas = '';
     var batizadosNoDistrito = 0;
 
@@ -598,7 +625,7 @@
         '<div class="igreja-stat-card" style="border-left-color:#2ec46b;background:rgba(46, 196, 107, 0.05);margin-bottom:20px;">' +
         '<div style="display:flex;justify-content:space-between;font-size:0.9rem;"><strong style="color:var(--text-main);">🌟 ALVO DO DISTRITO</strong><span style="color:#2ec46b;font-weight:bold;">' + batizadosNoDistrito + ' / ' + metaDistrito + '</span></div>' +
         '<div class="progress-bar"><div class="progress-fill" style="width:' + pctDist + '%;background:#2ec46b;"></div></div>' +
-        '<div class="contabilidade-row"><div class="contabilidade-item">Alvo: <strong>' + metaDistrito + '</strong></div><div class="contabilidade-item">Progresso: <strong>' + pctDist + '%</strong></div><div class="contabilidade-item">Falta: <strong style="color:' + (isDistComplete ? '#2ec46b' : '#e74c3c') + ';">' + (isDistComplete ? 'Concluído! 🎉' : faltaDist) + '</strong></div></div></div>';
+        '<div class="contabilidade-row" style="background:transparent; border: 1px solid rgba(46,196,107,0.2);"><div class="contabilidade-item">Alvo: <strong>' + metaDistrito + '</strong></div><div class="contabilidade-item">Progresso: <strong>' + pctDist + '%</strong></div><div class="contabilidade-item">Falta: <strong style="color:' + (isDistComplete ? '#2ec46b' : '#e74c3c') + ';">' + (isDistComplete ? 'Concluído! 🎉' : faltaDist) + '</strong></div></div></div>';
     }
     container.innerHTML = htmlDistrito + htmlIgrejas;
   }
@@ -626,13 +653,18 @@
         '</div>';
     }
 
-    document.getElementById('stats-row').innerHTML =
-      '<div class="stat-box"><div class="stat-num" style="color:#f39c12">' + interessados + '</div><div class="stat-label">Interessados</div></div>' +
-      '<div class="stat-box"><div class="stat-num" style="color:#e67e22">' + pausados + '</div><div class="stat-label">Pausados</div></div>';
+    var sRow = document.getElementById('stats-row');
+    if (sRow) {
+      sRow.innerHTML =
+        '<div class="stat-box"><div class="stat-num" style="color:#f39c12">' + interessados + '</div><div class="stat-label">Interessados</div></div>' +
+        '<div class="stat-box"><div class="stat-num" style="color:#e67e22">' + pausados + '</div><div class="stat-label">Pausados</div></div>';
+    }
 
     renderMetas();
 
     var lista = document.getElementById('lista-alvos');
+    if (!lista) return;
+    
     var busca = (document.getElementById('busca') ? document.getElementById('busca').value : '').toLowerCase();
     var html = '';
     var contadorExibidos = 0;
@@ -720,6 +752,8 @@
       document.getElementById('form-cadastro').reset();
       alert("Alvo salvo e sincronizado na nuvem! 🚀");
       showTab('lista');
+    }).catch(function(err) {
+      alert("Erro ao salvar alvo: " + err.message);
     });
   }
 
@@ -742,7 +776,9 @@
     document.getElementById('edit-classe').value = alvo.classe || '';
     document.getElementById('edit-instrutor').value = alvo.instrutor || '';
     document.getElementById('edit-endereco').value = alvo.endereco || '';
-    document.getElementById('edit-data').value = alvo.data || '';
+    
+    var dInp = document.getElementById('edit-data');
+    if (dInp) dInp.value = alvo.data || '';
     
     // Injetar opções de status dinamicamente para bloquear quem não é admin
     var selectStatus = document.getElementById('edit-status');
@@ -768,8 +804,11 @@
     // Desabilitar outros inputs se não for admin
     var inputs = ['edit-nome', 'edit-telefone', 'edit-idade', 'edit-classe', 'edit-instrutor', 'edit-endereco', 'edit-data'];
     for(var x=0; x<inputs.length; x++) {
-      if(!isUserAdmin) document.getElementById(inputs[x]).setAttribute('disabled', 'true');
-      else document.getElementById(inputs[x]).removeAttribute('disabled');
+      var targetInp = document.getElementById(inputs[x]);
+      if (targetInp) {
+        if(!isUserAdmin) targetInp.setAttribute('disabled', 'true');
+        else targetInp.removeAttribute('disabled');
+      }
     }
 
     // Renderizar Histórico
@@ -834,6 +873,8 @@
 
     db.collection("alvos").doc(editandoId).update(updateData).then(function() {
       forcarFecharModal();
+    }).catch(function(err) {
+      alert("Erro ao atualizar edicao: " + err.message);
     });
   }
 
@@ -847,10 +888,12 @@
   function applyTheme(theme) {
     if(theme === 'dark') {
       document.body.setAttribute('data-theme', 'dark');
-      document.getElementById('theme-btn').innerText = '☀️';
+      var tBtn = document.getElementById('theme-btn');
+      if (tBtn) tBtn.innerText = '☀️';
     } else {
       document.body.removeAttribute('data-theme');
-      document.getElementById('theme-btn').innerText = '🌙';
+      var tBtn = document.getElementById('theme-btn');
+      if (tBtn) tBtn.innerText = '🌙';
     }
   }
   var savedTheme = localStorage.getItem('tema_alvos') || 'light';
