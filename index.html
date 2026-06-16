@@ -155,7 +155,6 @@
   <h1>Alvos de Batismo 2026</h1>
   <p>Distrito Bairro do Feital</p>
   <div id="user-role-badge" class="user-badge" style="display:none;">Carregando...</div>
-  <div id="user-name-display" style="font-size: 0.7rem; opacity: 0.7; margin-top: 5px;"></div>
 </header>
 
 <div class="container">
@@ -404,10 +403,6 @@
       document.getElementById('app-content').style.display = 'block';
       document.getElementById('logout-btn').style.display = 'block';
 
-      // Exibir nome do usuário
-      var nameDisplay = document.getElementById('user-name-display');
-      if (nameDisplay) nameDisplay.innerText = "Usuário: " + user.email.split('@')[0];
-
       var badge = document.getElementById('user-role-badge');
       if (badge) badge.style.display = 'inline-block';
 
@@ -442,8 +437,6 @@
       document.getElementById('logout-btn').style.display = 'none';
       var badge = document.getElementById('user-role-badge');
       if (badge) badge.style.display = 'none';
-      var nameDisplay = document.getElementById('user-name-display');
-      if (nameDisplay) nameDisplay.innerText = "";
     }
   });
 
@@ -621,7 +614,92 @@
     renderLista();
   }
 
+  function renderMetas() {
+    var container = document.getElementById('metas-container');
+    if (!container) return;
+    var htmlIgrejas = '';
+    var batizadosNoDistrito = 0;
+
+    for (var i = 0; i < alvos.length; i++) {
+      if (alvos[i].status === 'batizado') batizadosNoDistrito++;
+    }
+
+    for (var k = 0; k < igrejas.length; k++) {
+      var ig = igrejas[k];
+      var batizadosAqui = 0;
+      for (var j = 0; j < alvos.length; j++) {
+        if (alvos[j].igreja === ig.nome && alvos[j].status === 'batizado') batizadosAqui++;
+      }
+      var pctLoc = ig.meta > 0 ? Math.min((batizadosAqui / ig.meta) * 100, 100).toFixed(0) : 0;
+      var faltaLoc = ig.meta - batizadosAqui;
+      var isLocComplete = faltaLoc <= 0;
+
+      htmlIgrejas +=
+        '<div class="igreja-stat-card">' +
+        '<div style="display:flex;justify-content:space-between;font-size:0.85rem;">' +
+        '<strong style="color:var(--text-main);">⛪ ' + escapeHTML(ig.nome) + '</strong>' +
+        '<span style="color:' + (isLocComplete ? '#2ec46b' : 'var(--text-muted)') + ';font-weight:bold;">' + batizadosAqui + ' / ' + ig.meta + '</span></div>' +
+        '<div class="progress-bar"><div class="progress-fill" style="width:' + pctLoc + '%;background:' + (isLocComplete ? '#2ec46b' : '#2e6bc4') + ';"></div></div>' +
+        '<div class="contabilidade-row">' +
+        '<div class="contabilidade-item">Meta: <strong>' + ig.meta + '</strong></div>' +
+        '<div class="contabilidade-item">Feito: <strong>' + pctLoc + '%</strong></div>' +
+        '<div class="contabilidade-item">Falta: <strong style="color:' + (isLocComplete ? '#2ec46b' : '#e74c3c') + ';">' + (isLocComplete ? 'Batida! 🎉' : faltaLoc) + '</strong></div>' +
+        '</div></div>';
+    }
+
+    var pctDist = metaDistrito > 0 ? Math.min((batizadosNoDistrito / metaDistrito) * 100, 100).toFixed(0) : 0;
+    var faltaDist = metaDistrito - batizadosNoDistrito;
+    var isDistComplete = faltaDist <= 0;
+    var htmlDistrito = '';
+
+    if (metaDistrito > 0) {
+      htmlDistrito =
+        '<div class="igreja-stat-card" style="border-left-color:#2ec46b;background:rgba(46,196,107,0.05);margin-bottom:20px;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:0.9rem;">' +
+        '<strong style="color:var(--text-main);">🌟 ALVO DO DISTRITO</strong>' +
+        '<span style="color:#2ec46b;font-weight:bold;">' + batizadosNoDistrito + ' / ' + metaDistrito + '</span></div>' +
+        '<div class="progress-bar"><div class="progress-fill" style="width:' + pctDist + '%;background:#2ec46b;"></div></div>' +
+        '<div class="contabilidade-row" style="background:transparent;border:1px solid rgba(46,196,107,0.2);">' +
+        '<div class="contabilidade-item">Alvo: <strong>' + metaDistrito + '</strong></div>' +
+        '<div class="contabilidade-item">Progresso: <strong>' + pctDist + '%</strong></div>' +
+        '<div class="contabilidade-item">Falta: <strong style="color:' + (isDistComplete ? '#2ec46b' : '#e74c3c') + ';">' + (isDistComplete ? 'Concluído! 🎉' : faltaDist) + '</strong></div>' +
+        '</div></div>';
+    }
+    container.innerHTML = htmlDistrito + htmlIgrejas;
+  }
+
   function renderLista() {
+    var total = alvos.length;
+    var batizados = 0, estudando = 0, interessados = 0, pausados = 0;
+    for (var i = 0; i < alvos.length; i++) {
+      if (alvos[i].status === 'batizado')   batizados++;
+      if (alvos[i].status === 'estudando')  estudando++;
+      if (alvos[i].status === 'interessado') interessados++;
+      if (alvos[i].status === 'pausado')    pausados++;
+    }
+
+    var pctEstudos   = total > 0 ? Math.round((estudando / total) * 100) : 0;
+    var pctBatismos  = total > 0 ? Math.round((batizados / total) * 100) : 0;
+
+    var fContainer = document.getElementById('funil-container');
+    if (fContainer) {
+      fContainer.innerHTML =
+        '<div class="funil-container">' +
+          '<div class="funil-step"><div class="funil-num">' + total + '</div><div class="funil-label">Contatos</div></div>' +
+          '<div class="funil-step"><div class="funil-num">' + estudando + '</div><div class="funil-label">Estudos</div><div class="funil-pct">' + pctEstudos + '%</div></div>' +
+          '<div class="funil-step"><div class="funil-num" style="color:#2ec46b">' + batizados + '</div><div class="funil-label">Batizados</div><div class="funil-pct" style="background:#2ec46b;color:white;">' + pctBatismos + '%</div></div>' +
+        '</div>';
+    }
+
+    var sRow = document.getElementById('stats-row');
+    if (sRow) {
+      sRow.innerHTML =
+        '<div class="stat-box"><div class="stat-num" style="color:#f39c12">' + interessados + '</div><div class="stat-label">Interessados</div></div>' +
+        '<div class="stat-box"><div class="stat-num" style="color:#e67e22">' + pausados + '</div><div class="stat-label">Pausados</div></div>';
+    }
+
+    renderMetas();
+
     var lista = document.getElementById('lista-alvos');
     if (!lista) return;
 
