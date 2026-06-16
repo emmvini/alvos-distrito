@@ -449,7 +449,7 @@
   // Sincronização Segura e Gerenciamento de Callbacks
   function conectarSincronizacaoNuvem() {
     // 1. Escutar Alvos
-    db.collection("alvos").orderBy("dataAtualizacao", "desc").onSnapshot(function(snapshot) {
+    db.collection("alvos").onSnapshot(function(snapshot) {
       alvos = [];
       snapshot.forEach(function(doc) {
         var d = doc.data();
