@@ -63,6 +63,11 @@
     input:focus, select:focus, textarea:focus { border-color: #2e6bc4; }
     textarea { resize: vertical; min-height: 70px; }
 
+    /* Estilo do novo Filtro de Igreja */
+    .igreja-filter-wrap { margin-bottom: 12px; position: relative; }
+    .igreja-filter-wrap select { width: 100%; padding: 10px 36px 10px 14px; border: 1.5px solid var(--border-color); border-radius: 8px; font-size: 0.95rem; background: var(--bg-card); color: var(--text-main); font-weight: 600; cursor: pointer; appearance: none; -webkit-appearance: none; transition: background-color 0.2s, color 0.2s; }
+    .igreja-filter-wrap::after { content: '⛪'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; font-size: 1rem; }
+
     .btn { display: block; width: 100%; padding: 13px; background: linear-gradient(135deg, #1a3a6b, #2e6bc4); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: bold; margin-top: 14px; cursor: pointer; letter-spacing: 0.3px; text-align: center; }
     .btn:active { opacity: 0.85; }
     .btn-danger { background: linear-gradient(135deg, #b02020, #e05252); font-size: 0.82rem; padding: 8px; margin-top: 8px; border-radius: 8px; }
@@ -190,6 +195,12 @@
       <div id="metas-container" class="metas-container"></div>
 
       <input type="text" id="busca" class="busca-input" placeholder="🔍 Nome, instrutor, igreja ou classe..." onkeyup="renderLista()" />
+
+      <div class="igreja-filter-wrap">
+        <select id="filtro-igreja" onchange="renderLista()">
+          <option value="">Todas as Igrejas</option>
+        </select>
+      </div>
 
       <div class="filter-bar">
         <button class="filter-btn active" onclick="filtrar('todos', this)">Todos</button>
@@ -480,6 +491,7 @@
       });
       renderConfigIgrejas();
       atualizarSelectsIgreja();
+      atualizarFiltroIgreja(); // NOVO: Chama a função para preencher o filtro
       renderLista();
     });
 
@@ -551,7 +563,7 @@
   }
 
   // =========================================================================
-  // GESTÃO DE IGREJAS
+  // GESTÃO DE IGREJAS E FILTROS ADICIONADOS
   // =========================================================================
   function adicionarIgreja(e) {
     e.preventDefault();
@@ -605,8 +617,24 @@
     }
   }
 
+  // NOVO: Função para preencher a caixinha de filtro de igrejas
+  function atualizarFiltroIgreja() {
+    var selFiltro = document.getElementById('filtro-igreja');
+    if (!selFiltro) return;
+    
+    var valorAtual = selFiltro.value;
+    var html = '<option value="">Todas as Igrejas</option>';
+    
+    for (var i = 0; i < igrejas.length; i++) {
+      html += '<option value="' + escapeHTML(igrejas[i].nome) + '">' + escapeHTML(igrejas[i].nome) + '</option>';
+    }
+    
+    selFiltro.innerHTML = html;
+    selFiltro.value = valorAtual; 
+  }
+
   // =========================================================================
-  // DASHBOARD E FILTROS
+  // DASHBOARD E RENDERIZAÇÃO DA LISTA
   // =========================================================================
   function filtrar(status, btn) {
     filtroAtual = status;
@@ -706,14 +734,35 @@
     if (!lista) return;
 
     var busca = (document.getElementById('busca') ? document.getElementById('busca').value : '').toLowerCase().trim();
+    
+    // NOVO: Captura qual igreja está selecionada no filtro
+    var selIgreja = document.getElementById('filtro-igreja');
+    var filtroIgreja = selIgreja ? selIgreja.value : '';
+    
+    // Deixa o visual do select azul quando tem uma igreja selecionada
+    if (selIgreja) {
+      if (filtroIgreja !== '') {
+        selIgreja.style.background = '#2e6bc4';
+        selIgreja.style.color = 'white';
+      } else {
+        selIgreja.style.background = 'var(--bg-card)';
+        selIgreja.style.color = 'var(--text-main)';
+      }
+    }
+
     var html = '';
     var contadorExibidos = 0;
 
     for (var i = 0; i < alvos.length; i++) {
       var a = alvos[i];
+      
+      // Regras de bloqueio (se não passar no filtro, pula pro próximo)
       if (filtroAtual !== 'todos' && a.status !== filtroAtual) continue;
+      
+      // NOVO: Regra de bloqueio do filtro de igreja
+      if (filtroIgreja !== '' && a.igreja !== filtroIgreja) continue;
 
-      var sNome   = a.nome     ? String(a.nome).toLowerCase()     : '';
+      var sNome   = a.nome     ? String(a.nome).toLowerCase()      : '';
       var sInst   = a.instrutor ? String(a.instrutor).toLowerCase() : '';
       var sIgreja = a.igreja   ? String(a.igreja).toLowerCase()   : '';
       var sClasse = a.classe   ? "classe " + String(a.classe).toLowerCase() : '';
@@ -759,7 +808,7 @@
     }
 
     lista.innerHTML = (contadorExibidos === 0)
-      ? '<div class="empty-msg">Nenhum registro encontrado na nuvem.</div>'
+      ? '<div class="empty-msg">Nenhum registro encontrado.</div>'
       : html;
   }
 
