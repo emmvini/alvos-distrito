@@ -43,7 +43,6 @@
     header p { font-size: 0.85rem; opacity: 0.85; }
 
     .theme-toggle { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 36px; height: 36px; color: white; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-
     .logout-btn { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.2); border: none; border-radius: 8px; padding: 6px 12px; color: white; font-size: 0.8rem; cursor: pointer; }
 
     .container { padding: 16px; max-width: 480px; margin: 0 auto; }
@@ -294,7 +293,6 @@
   </div>
 </div>
 
-<!-- MODAL DE EDIÇÃO -->
 <div class="modal-overlay" id="modal-overlay" onclick="fecharModal(event)">
   <div class="modal">
     <h2>✏️ Detalhes e Linha do Tempo</h2>
@@ -336,7 +334,6 @@
         <label>Endereço</label>
         <input type="text" id="edit-endereco" />
       </div>
-      <!-- CORREÇÃO: campo edit-data adicionado -->
       <div class="field-group">
         <label>Data do primeiro contato</label>
         <input type="date" id="edit-data" />
@@ -388,9 +385,6 @@
   var editandoId = null;
   var usuarioLogado = null;
 
-  // =========================================================================
-  // CORREÇÃO PRINCIPAL: função statusLabel que estava faltando
-  // =========================================================================
   function statusLabel(status) {
     var labels = {
       'interessado': 'Interessado',
@@ -505,7 +499,7 @@
   function escapeHTML(str) {
     if (str === null || str === undefined) return '';
     return String(str).replace(/[&<>'"]/g, function(tag) {
-      var chars = { '&': '&', '<': '<', '>': '>', "'": '&#39;', '"': '&quot;' };
+      var chars = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
       return chars[tag] || tag;
     });
   }
@@ -711,7 +705,7 @@
     var lista = document.getElementById('lista-alvos');
     if (!lista) return;
 
-    var busca = (document.getElementById('busca') ? document.getElementById('busca').value : '').toLowerCase();
+    var busca = (document.getElementById('busca') ? document.getElementById('busca').value : '').toLowerCase().trim();
     var html = '';
     var contadorExibidos = 0;
 
@@ -724,7 +718,7 @@
       var sIgreja = a.igreja   ? String(a.igreja).toLowerCase()   : '';
       var sClasse = a.classe   ? "classe " + String(a.classe).toLowerCase() : '';
 
-      if (sNome.indexOf(busca) > -1 || sInst.indexOf(busca) > -1 || sIgreja.indexOf(busca) > -1 || sClasse.indexOf(busca) > -1) {
+      if (busca === '' || sNome.indexOf(busca) > -1 || sInst.indexOf(busca) > -1 || sIgreja.indexOf(busca) > -1 || sClasse.indexOf(busca) > -1) {
         contadorExibidos++;
 
         var diasInativo = calcularDiasInativo(a.dataAtualizacao);
@@ -802,7 +796,7 @@
 
     db.collection("alvos").add(novoAlvo).then(function() {
       document.getElementById('form-cadastro').reset();
-      alert("Alvo salvo e sincronizado na nuvem! 🚀");
+      alert("Cadastro realizado e sincronizado na nuvem! 🚀");
       showTab('lista');
     }).catch(function(err) {
       alert("Erro ao salvar alvo: " + err.message);
