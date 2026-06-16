@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alvos de Batismo - Nuvem Distrito</title>
+  
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --bg-body: #f0f4ff;
+      --bg-card: #ffffff;
+      --text-main: #222222;
+      --text-muted: #555555;
+      --border-color: #dde3f0;
+      --input-bg: #f8f9ff;
+      --header-bg: linear-gradient(135deg, #1a3a6b, #2e6bc4);
+      --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      --modal-bg: rgba(0,0,0,0.45);
+    }
+
+    [data-theme="dark"] {
+      --bg-body: #121212;
+      --bg-card: #1e1e1e;
+      --text-main: #e0e0e0;
+      --text-muted: #aaaaaa;
+      --border-color: #333333;
+      --input-bg: #2a2a2a;
+      --header-bg: linear-gradient(135deg, #0d1f3b, #1a3a6b);
+      --card-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      --modal-bg: rgba(0,0,0,0.8);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-main); padding-bottom: 40px; transition: background 0.3s, color 0.3s; }
+    body.modal-open { overflow: hidden; }
+
+    header { background: var(--header-bg); color: white; padding: 20px 16px 16px; text-align: center; position: relative; }
+    header h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    header p { font-size: 0.85rem; opacity: 0.85; }
+
+    .theme-toggle { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 36px; height: 36px; color: white; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    
+    .logout-btn { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.2); border: none; border-radius: 8px; padding: 6px 12px; color: white; font-size: 0.8rem; cursor: pointer; }
+
+    .container { padding: 16px; max-width: 480px; margin: 0 auto; }
+
+    /* Tela de Login */
+    #screen-login { display: flex; align-items: center; justify-content: center; min-height: 80vh; }
+    .login-card { background: var(--bg-card); border-radius: 14px; padding: 24px; width: 100%; max-width: 360px; box-shadow: var(--card-shadow); text-align: center; }
+    .login-card h2 { color: #1a3a6b; margin-bottom: 8px; font-size: 1.3rem; }
+    .login-card p { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px; }
+
+    #app-content { display: none; }
+
+    .card { background: var(--bg-card); border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: var(--card-shadow); }
+    .card h2 { font-size: 1rem; color: #2e6bc4; margin-bottom: 12px; }
+
+    .field-group { margin-bottom: 12px; }
+    label { display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+    input, select, textarea { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-color); border-radius: 8px; font-size: 0.95rem; background: var(--input-bg); color: var(--text-main); outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: #2e6bc4; }
+    textarea { resize: vertical; min-height: 70px; }
+
+    .btn { display: block; width: 100%; padding: 13px; background: linear-gradient(135deg, #1a3a6b, #2e6bc4); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: bold; margin-top: 14px; cursor: pointer; letter-spacing: 0.3px; text-align: center; }
+    .btn:active { opacity: 0.85; }
+    .btn-danger { background: linear-gradient(135deg, #b02020, #e05252); font-size: 0.82rem; padding: 8px; margin-top: 8px; border-radius: 8px; }
+    .btn-success { background: linear-gradient(135deg, #1a6b3a, #2ec46b); font-size: 0.82rem; padding: 8px; margin-top: 8px; border-radius: 8px; }
+    .btn-small { padding: 6px 12px; font-size: 0.8rem; margin-top: 0; width: auto; display: inline-block; }
+    
+    /* Restrição Visual para Editores */
+    .admin-only { display: none; }
+    body.is-admin .admin-only { display: block; }
+    body.is-admin .admin-only-inline { display: inline-block; }
+    body:not(.is-admin) .admin-only-inline { display: none; }
+
+    .busca-input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-color); border-radius: 8px; margin-bottom: 12px; font-size: 0.95rem; background: var(--bg-card); color: var(--text-main); }
+
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1.5px solid #2e6bc4; background: var(--bg-card); color: #2e6bc4; font-size: 0.82rem; cursor: pointer; }
+    .filter-btn.active { background: #2e6bc4; color: white; }
+
+    .alvo-card { background: var(--bg-card); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: var(--card-shadow); border-left: 5px solid #2e6bc4; position: relative; }
+    .alvo-card.batizado { border-left-color: #2ec46b; }
+    .alvo-card.pausado { border-left-color: #e0a030; }
+    .alvo-card.inativo { border-left-color: #e74c3c; }
+
+    .alvo-nome { font-size: 1rem; font-weight: bold; color: var(--text-main); }
+    .alvo-badges { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
+    .alvo-status { display: inline-block; font-size: 0.72rem; padding: 2px 10px; border-radius: 20px; font-weight: 600; color: white;}
+    .status-estudando { background: #3498db; }
+    .status-interessado { background: #f39c12; }
+    .status-batizado { background: #2ecc71; }
+    .status-pausado { background: #e67e22; }
+
+    .classe-badge { display: inline-block; font-size: 0.72rem; padding: 2px 10px; border-radius: 20px; font-weight: 600; color: white; }
+    .classe-A { background: #1dd1a1; }
+    .classe-B { background: #feca57; color: #222; }
+    .classe-C { background: #ff6b6b; }
+    .classe-nenhuma { background: #8395a7; }
+
+    .inativo-badge { display: inline-block; font-size: 0.72rem; padding: 2px 8px; border-radius: 20px; font-weight: bold; background: #ffeaa7; color: #c0392b; border: 1px solid #c0392b;}
+
+    .alvo-info { font-size: 0.83rem; color: var(--text-muted); margin-top: 8px; line-height: 1.6; }
+    
+    .historico-box { font-size: 0.8rem; color: var(--text-muted); margin-top: 10px; background: var(--input-bg); border-radius: 8px; padding: 10px; border: 1px solid var(--border-color);}
+    .historico-item { border-left: 2px solid #2e6bc4; padding-left: 8px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border-color); }
+    .historico-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .historico-data { font-size: 0.7rem; color: #2e6bc4; font-weight: bold; margin-bottom: 2px; }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-row button { flex: 1; }
+
+    .empty-msg { text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 20px; padding: 20px; background: var(--bg-card); border-radius: 10px; }
+
+    .tab-bar { display: flex; background: var(--bg-card); border-radius: 12px; padding: 4px; margin-bottom: 16px; box-shadow: var(--card-shadow); }
+    .tab { flex: 1; text-align: center; padding: 10px; border-radius: 9px; font-size: 0.88rem; cursor: pointer; color: var(--text-muted); font-weight: 500; transition: all 0.2s; }
+    .tab.active { background: linear-gradient(135deg, #1a3a6b, #2e6bc4); color: white; font-weight: bold; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .stats-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; justify-content: center; }
+    .stat-box { flex: 1 1 30%; background: var(--bg-card); border-radius: 12px; padding: 12px 6px; text-align: center; box-shadow: var(--card-shadow); min-width: 80px; }
+    .stat-num { font-size: 1.4rem; font-weight: bold; color: #2e6bc4; }
+    .stat-label { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+    .funil-container { display: flex; background: var(--bg-card); border-radius: 12px; padding: 12px; margin-bottom: 16px; box-shadow: var(--card-shadow); align-items: center; justify-content: space-between; text-align: center;}
+    .funil-step { flex: 1; position: relative; }
+    .funil-step:not(:last-child)::after { content: '➔'; position: absolute; right: -10px; top: 50%; transform: translateY(-50%); color: var(--border-color); font-size: 1.2rem; }
+    .funil-num { font-size: 1.2rem; font-weight: bold; color: var(--text-main); }
+    .funil-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+    .funil-pct { font-size: 0.7rem; font-weight: bold; color: #2ec46b; background: rgba(46, 196, 107, 0.1); padding: 2px 6px; border-radius: 10px; margin-top: 2px; display: inline-block;}
+
+    .metas-container { margin-bottom: 16px; }
+    .igreja-stat-card { background: var(--bg-card); padding: 12px; border-radius: 10px; margin-bottom: 8px; box-shadow: var(--card-shadow); border-left: 4px solid #1a3a6b; }
+    .progress-bar { background: var(--border-color); border-radius: 10px; height: 8px; margin-top: 6px; overflow: hidden; width: 100%; }
+    .progress-fill { background: #2e6bc4; height: 100%; transition: width 0.4s ease; border-radius: 10px; }
+    .contabilidade-row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; color: var(--text-muted); background: var(--input-bg); padding: 6px 8px; border-radius: 6px; }
+    .contabilidade-item strong { color: var(--text-main); }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: var(--modal-bg); z-index: 100; align-items: flex-end; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg-card); border-radius: 20px 20px 0 0; padding: 20px 16px 30px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+    .modal h2 { font-size: 1rem; color: #2e6bc4; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;}
+    
+    .user-badge { background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; display: inline-block; margin-top: 5px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <button class="logout-btn" id="logout-btn" onclick="deslogar()" style="display:none;">Sair</button>
+  <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">🌙</button>
+  <h1>🕊️ Alvos de Batismo</h1>
+  <p>Painel Sincronizado do Distrito</p>
+  <div id="user-role-badge" class="user-badge" style="display:none;">Carregando...</div>
+</header>
+
+<div class="container">
+
+  <div id="screen-login">
+    <div class="login-card">
+      <h2>Acesso ao Painel</h2>
+      <p>Introduza as suas credenciais autorizadas pelo Distrito.</p>
+      <form onsubmit="fazerLogin(event)">
+        <div class="field-group" style="text-align: left;">
+          <label>E-mail</label>
+          <input type="email" id="login-email" required placeholder="exemplo@igreja.com" />
+        </div>
+        <div class="field-group" style="text-align: left;">
+          <label>Palavra-passe</label>
+          <input type="password" id="login-password" required placeholder="******" />
+        </div>
+        <button type="submit" class="btn">Entrar no Sistema</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="app-content">
+    <div class="tab-bar">
+      <div id="tab-btn-lista"  class="tab active" onclick="showTab('lista')">📋 Lista</div>
+      <div id="tab-btn-novo"   class="tab admin-only" onclick="showTab('novo')">➕ Novo</div>
+      <div id="tab-btn-config" class="tab"        onclick="showTab('config')">⚙️ Config</div>
+    </div>
+
+    <div id="tab-lista" class="section active">
+      <div id="funil-container"></div>
+      <div class="stats-row" id="stats-row"></div>
+      <div id="metas-container" class="metas-container"></div>
+
+      <input type="text" id="busca" class="busca-input" placeholder="🔍 Nome, instrutor, igreja ou classe..." onkeyup="renderLista()" />
+
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filtrar('todos', this)">Todos</button>
+        <button class="filter-btn" onclick="filtrar('estudando', this)">Estudando</button>
+        <button class="filter-btn" onclick="filtrar('interessado', this)">Interessado</button>
+        <button class="filter-btn" onclick="filtrar('batizado', this)">Batizado</button>
+        <button class="filter-btn" onclick="filtrar('pausado', this)">Pausado</button>
+      </div>
+
+      <div id="lista-alvos"></div>
+    </div>
+
+    <div id="tab-novo" class="section">
+      <div class="card">
+        <h2>✍️ Registrar Novo Alvo</h2>
+        <form id="form-cadastro" onsubmit="salvarAlvo(event)">
+          <div class="field-group">
+            <label>Nome completo</label>
+            <input type="text" id="inp-nome" required />
+          </div>
+          <div class="field-group">
+            <label>Telefone</label>
+            <input type="tel" id="inp-telefone" />
+          </div>
+          <div class="field-group">
+            <label>Idade</label>
+            <input type="number" id="inp-idade" min="0" />
+          </div>
+          <div class="field-group">
+            <label>Igreja / Congregação</label>
+            <select id="inp-igreja"></select>
+          </div>
+          <div class="field-group">
+            <label>Classificação de Interesse</label>
+            <select id="inp-classe">
+              <option value="">Nenhuma / Não Aplicável</option>
+              <option value="A">Classe A (Muito interessado / Grande chance)</option>
+              <option value="B">Classe B (Interessado / Falta convicção)</option>
+              <option value="C">Classe C (Desinteresse)</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Quem está dando estudo (Instrutor)</label>
+            <input type="text" id="inp-instrutor" />
+          </div>
+          <div class="field-group">
+            <label>Endereço</label>
+            <input type="text" id="inp-endereco" />
+          </div>
+          <div class="field-group">
+            <label>Status atual</label>
+            <select id="inp-status">
+              <option value="interessado">Interessado</option>
+              <option value="estudando">Estudando a Bíblia</option>
+              <option value="batizado">Batizado ✅</option>
+              <option value="pausado">Pausado</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Data do primeiro contato</label>
+            <input type="date" id="inp-data" />
+          </div>
+          <div class="field-group">
+            <label>Nota Inicial (Histórico)</label>
+            <textarea id="inp-obs" placeholder="Como foi o primeiro contato?"></textarea>
+          </div>
+          <button type="submit" class="btn">💾 Salvar Alvo</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="tab-config" class="section">
+      <div class="card admin-only">
+        <h2>🎯 Alvo Geral do Distrito</h2>
+        <div class="field-group" style="margin-top: 8px;">
+          <label>Defina a Meta Geral do Distrito (Associação/Missão)</label>
+          <input type="number" id="cfg-meta-distrito" placeholder="Ex: 100" min="1" onchange="salvarMetaDistrito()" />
+        </div>
+      </div>
+
+      <div class="card admin-only">
+        <h2>⛪ Igrejas Locais e Metas</h2>
+        <form id="form-igreja" onsubmit="adicionarIgreja(event)">
+          <div class="field-group">
+            <label>Nome da Igreja</label>
+            <input type="text" id="cfg-nome-igreja" required />
+          </div>
+          <div class="field-group">
+            <label>Alvo Local de Batismo</label>
+            <input type="number" id="cfg-meta-igreja" required min="1" />
+          </div>
+          <button type="submit" class="btn">➕ Adicionar Igreja</button>
+        </form>
+      </div>
+      
+      <div class="card">
+        <h2>⛪ Lista de Igrejas Configuradas</h2>
+        <div id="lista-config-igrejas"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="fecharModal(event)">
+  <div class="modal">
+    <h2>✏️ Detalhes e Linha do Tempo</h2>
+    <form id="form-edicao" onsubmit="salvarEdicao(event)">
+      <div class="field-group">
+        <label>Nome</label>
+        <input type="text" id="edit-nome" required />
+      </div>
+      <div class="field-group">
+        <label>Status</label>
+        <select id="edit-status"></select>
+      </div>
+      <div class="field-group">
+        <label>Classificação de Interesse</label>
+        <select id="edit-classe">
+          <option value="">Nenhuma</option>
+          <option value="A">Classe A</option>
+          <option value="B">Classe B</option>
+          <option value="C">Classe C</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Telefone</label>
+        <input type="tel" id="edit-telefone" />
+      </div>
+      <div class="field-group">
+        <label>Idade</label>
+        <input type="number" id="edit-idade" />
+      </div>
+      <div class="field-group">
+        <label>Igreja / Congregação</label>
+        <select id="edit-igreja"></select>
+      </div>
+      <div class="field-group">
+        <label>Quem está dando estudo (Instrutor)</label>
+        <input type="text" id="edit-instrutor" />
+      </div>
+      <div class="field-group">
+        <label>Endereço</label>
+        <input type="text" id="edit-endereco" />
+      </div>
+      
+      <h3 style="font-size: 0.95rem; color: #2e6bc4; margin: 20px 0 10px;">Linha do Tempo (Histórico)</h3>
+      <div id="edit-historico-lista" style="margin-bottom: 15px;"></div>
+      
+      <div class="field-group admin-only-inline" style="width: 100%;">
+        <label>Adicionar Nova Nota / Interação</label>
+        <textarea id="edit-nova-nota" placeholder="Escreva o progresso de hoje..."></textarea>
+      </div>
+
+      <button type="submit" class="btn admin-only-inline">💾 Salvar Alterações</button>
+      <button type="button" class="btn btn-danger" onclick="forcarFecharModal()">Fechar / Cancelar</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // =========================================================================
+  // CONFIGURAÇÃO CENTRAL DO FIREBASE
+  // =========================================================================
+  var firebaseConfig = {
+    apiKey: "AIzaSyDLwOpSGWl6gcmvmbpK07spWwi59I-hMrE",
+    authDomain: "alvos-distrito.firebaseapp.com",
+    projectId: "alvos-distrito",
+    storageBucket: "alvos-distrito.firebasestorage.app",
+    messagingSenderId: "157447650863",
+    appId: "1:157447650863:web:988092cd55438539d950da"
+  };
+
+  // =========================================================================
+  // LISTA DE ADMINISTRADORES
+  // =========================================================================
+  var EMAILS_ADMINISTRADORES = [
+    "seu-email-aqui@gmail.com",
+    "outro-lider@gmail.com"
+  ];
+
+  // Inicializa o Firebase
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth();
+  var db = firebase.firestore();
+
+  var alvos = [];
+  var igrejas = [];
+  var metaDistrito = 0;
+  var filtroAtual = 'todos';
+  var editandoId = null;
+  var usuarioLogado = null;
+
+  // Autenticação Real-time Listener
+  auth.onAuthStateChanged(function(user) {
+    if (user) {
+      usuarioLogado = user;
+      document.getElementById('screen-login').style.display = 'none';
+      document.getElementById('app-content').style.display = 'block';
+      document.getElementById('logout-btn').style.display = 'block';
+      
+      var badge = document.getElementById('user-role-badge');
+      badge.style.display = 'inline-block';
+      
+      // Verifica se o e-mail de quem entrou está na lista de admins
+      var contaComoAdmin = false;
+      for (var a = 0; a < EMAILS_ADMINISTRADORES.length; a++) {
+        if (user.email.toLowerCase() === EMAILS_ADMINISTRADORES[a].toLowerCase()) {
+          contaComoAdmin = true;
+          break;
+        }
+      }
+
+      if (contaComoAdmin) {
+         document.body.classList.add('is-admin');
+         badge.innerText = "Perfil: Administrador (Editor)";
+         badge.style.background = "#2ec46b";
+      } else {
+         document.body.classList.remove('is-admin');
+         badge.innerText = "Perfil: Líder do Distrito (Leitura)";
+         badge.style.background = "#f39c12";
+      }
+
+      conectarSincronizacaoNuvem();
+    } else {
+      usuarioLogado = null;
+      document.body.classList.remove('is-admin');
+      document.getElementById('screen-login').style.display = 'flex';
+      document.getElementById('app-content').style.display = 'none';
+      document.getElementById('logout-btn').style.display = 'none';
+      document.getElementById('user-role-badge').style.display = 'none';
+    }
+  });
+
+  function fazerLogin(e) {
+    e.preventDefault();
+    var email = document.getElementById('login-email').value.trim();
+    var pass = document.getElementById('login-password').value;
+    
+    auth.signInWithEmailAndPassword(email, pass).catch(function(error) {
+       alert("Erro de autenticação: " + error.message);
+    });
+  }
+
+  function deslogar() {
+    if(confirm("Deseja sair do aplicativo?")) auth.signOut();
+  }
+
+  // Sincronização em Tempo Real (A Mágica da Nuvem Firestore)
+  function conectarSincronizacaoNuvem() {
+    // 1. Escutar Alvos
+    db.collection("alvos").orderBy("dataAtualizacao", "desc").onSnapshot(function(snapshot) {
+      alvos = [];
+      snapshot.forEach(function(doc) {
+        var d = doc.data();
+        d.id = doc.id;
+        alvos.push(d);
+      });
+      renderLista();
+    }, function(error) {
+      console.error("Erro ao ler alvos da nuvem:", error);
+    });
+
+    // 2. Escutar Igrejas
+    db.collection("igrejas").onSnapshot(function(snapshot) {
+      igrejas = [];
+      snapshot.forEach(function(doc) {
+        var i = doc.data();
+        i.id = doc.id;
+        igrejas.push(i);
+      });
+      renderConfigIgrejas();
+      atualizarSelectsIgreja();
+      renderMetas();
+    });
+
+    // 3. Escutar Configuração do Distrito
+    db.collection("config_distrito").doc("meta_geral").onSnapshot(function(doc) {
+      if(doc.exists) {
+         metaDistrito = doc.data().meta || 0;
+         document.getElementById('cfg-meta-distrito').value = metaDistrito;
+      }
+      renderMetas();
+    });
+  }
+
+  // ----------- SEGURANÇA E AUXILIARES -----------
+  function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>'"]/g, function(tag) {
+      var chars = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
+      return chars[tag] || tag;
+    });
+  }
+
+  function formatarDataHoraPT(isoString) {
+    if(!isoString) return '';
+    var d = new Date(isoString);
+    return ("0" + d.getDate()).slice(-2) + '/' + ("0" + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+  }
+
+  function calcularDiasInativo(dataISO) {
+    if(!dataISO) return 0;
+    return Math.floor((new Date().getTime() - new Date(dataISO).getTime()) / (1000 * 3600 * 24));
+  }
+
+  function showTab(tab) {
+    var sections = document.querySelectorAll('.section');
+    for (var i = 0; i < sections.length; i++) { sections[i].classList.remove('active'); }
+    var tabs = document.querySelectorAll('.tab');
+    for (var j = 0; j < tabs.length; j++) { tabs[j].classList.remove('active'); }
+    
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.getElementById('tab-btn-' + tab).classList.add('active');
+    if (tab === 'lista') renderLista();
+  }
+
+  function salvarMetaDistrito() {
+    if(!document.body.classList.contains('is-admin')) return;
+    var val = parseInt(document.getElementById('cfg-meta-distrito').value);
+    var m = isNaN(val) ? 0 : val;
+    db.collection("config_distrito").doc("meta_geral").set({ meta: m });
+  }
+
+  // ----------- GESTÃO DE IGREJAS (NUVEM) -----------
+  function adicionarIgreja(e) {
+    e.preventDefault();
+    if(!document.body.classList.contains('is-admin')) return;
+    
+    var nome = document.getElementById('cfg-nome-igreja').value.trim();
+    var meta = parseInt(document.getElementById('cfg-meta-igreja').value);
+    if (!nome || isNaN(meta)) return;
+
+    db.collection("igrejas").add({ nome: nome, meta: meta });
+    document.getElementById('form-igreja').reset();
+  }
+
+  function removerIgreja(id) {
+    if(!document.body.classList.contains('is-admin')) return;
+    if (confirm('Excluir esta igreja do sistema de metas na nuvem?')) {
+       db.collection("igrejas").doc(id).delete();
+    }
+  }
+
+  function renderConfigIgrejas() {
+    var lista = document.getElementById('lista-config-igrejas');
+    if (igrejas.length === 0) { lista.innerHTML = '<div class="empty-msg">Nenhuma igreja configurada na nuvem.</div>'; return; }
+    var html = '';
+    for (var i = 0; i < igrejas.length; i++) {
+      var ig = igrejas[i];
+      html += '<div class="config-igreja-item"><div><strong style="color:var(--text-main);">' + escapeHTML(ig.nome) + '</strong><br><span style="font-size:0.8rem;color:var(--text-muted);">Alvo Local: ' + ig.meta + '</span></div><button class="btn-danger btn-small admin-only-inline" onclick="removerIgreja(\'' + ig.id + '\')">Excluir</button></div>';
+    }
+    lista.innerHTML = html;
+  }
+
+  function atualizarSelectsIgreja() {
+    var selects = [document.getElementById('inp-igreja'), document.getElementById('edit-igreja')];
+    var options = '';
+    if (igrejas.length > 0) {
+      options = '<option value="" disabled selected>Selecione...</option>';
+      for (var i = 0; i < igrejas.length; i++) { options += '<option value="' + escapeHTML(igrejas[i].nome) + '">' + escapeHTML(igrejas[i].nome) + '</option>'; }
+    } else { options = '<option value="" disabled selected>Aguardando criação de igrejas...</option>'; }
+    for (var j = 0; j < selects.length; j++) { if (selects[j]) selects[j].innerHTML = options; }
+  }
+
+  // ----------- DASHBOARD E FILTROS -----------
+  function filtrar(status, btn) {
+    filtroAtual = status;
+    var btns = document.querySelectorAll('.filter-btn');
+    for (var i = 0; i < btns.length; i++) { btns[i].classList.remove('active'); }
+    if (btn) btn.classList.add('active');
+    renderLista();
+  }
+
+  function renderMetas() {
+    var container = document.getElementById('metas-container');
+    var htmlIgrejas = '';
+    var batizadosNoDistrito = 0;
+
+    for (var i = 0; i < alvos.length; i++) { if (alvos[i].status === 'batizado') batizadosNoDistrito++; }
+
+    for (var k = 0; k < igrejas.length; k++) {
+      var ig = igrejas[k];
+      var batizadosAqui = 0;
+      for (var j = 0; j < alvos.length; j++) { if (alvos[j].igreja === ig.nome && alvos[j].status === 'batizado') batizadosAqui++; }
+      
+      var pctLoc = ig.meta > 0 ? Math.min((batizadosAqui / ig.meta) * 100, 100).toFixed(0) : 0;
+      var faltaLoc = ig.meta - batizadosAqui;
+      var isLocComplete = faltaLoc <= 0;
+
+      htmlIgrejas +=
+        '<div class="igreja-stat-card"><div style="display:flex;justify-content:space-between;font-size:0.85rem;"><strong style="color:var(--text-main);">⛪ ' + escapeHTML(ig.nome) + '</strong><span style="color:' + (isLocComplete ? '#2ec46b' : 'var(--text-muted)') + ';font-weight:bold;">' + batizadosAqui + ' / ' + ig.meta + '</span></div>' +
+        '<div class="progress-bar"><div class="progress-fill" style="width:' + pctLoc + '%;background:' + (isLocComplete ? '#2ec46b' : '#2e6bc4') + ';"></div></div>' +
+        '<div class="contabilidade-row"><div class="contabilidade-item">Meta: <strong>' + ig.meta + '</strong></div><div class="contabilidade-item">Feito: <strong>' + pctLoc + '%</strong></div><div class="contabilidade-item">Falta: <strong style="color:' + (isLocComplete ? '#2ec46b' : '#e74c3c') + ';">' + (isLocComplete ? 'Batida! 🎉' : faltaLoc) + '</strong></div></div></div>';
+    }
+
+    var pctDist = metaDistrito > 0 ? Math.min((batizadosNoDistrito / metaDistrito) * 100, 100).toFixed(0) : 0;
+    var faltaDist = metaDistrito - batizadosNoDistrito;
+    var isDistComplete = faltaDist <= 0;
+
+    var htmlDistrito = '';
+    if(metaDistrito > 0) {
+      htmlDistrito =
+        '<div class="igreja-stat-card" style="border-left-color:#2ec46b;background:rgba(46, 196, 107, 0.05);margin-bottom:20px;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:0.9rem;"><strong style="color:var(--text-main);">🌟 ALVO DO DISTRITO</strong><span style="color:#2ec46b;font-weight:bold;">' + batizadosNoDistrito + ' / ' + metaDistrito + '</span></div>' +
+        '<div class="progress-bar"><div class="progress-fill" style="width:' + pctDist + '%;background:#2ec46b;"></div></div>' +
+        '<div class="contabilidade-row"><div class="contabilidade-item">Alvo: <strong>' + metaDistrito + '</strong></div><div class="contabilidade-item">Progresso: <strong>' + pctDist + '%</strong></div><div class="contabilidade-item">Falta: <strong style="color:' + (isDistComplete ? '#2ec46b' : '#e74c3c') + ';">' + (isDistComplete ? 'Concluído! 🎉' : faltaDist) + '</strong></div></div></div>';
+    }
+    container.innerHTML = htmlDistrito + htmlIgrejas;
+  }
+
+  function renderLista() {
+    var total = alvos.length;
+    var batizados = 0, estudando = 0, interessados = 0, pausados = 0;
+    for (var i = 0; i < alvos.length; i++) {
+      if (alvos[i].status === 'batizado') batizados++;
+      if (alvos[i].status === 'estudando') estudando++;
+      if (alvos[i].status === 'interessado') interessados++;
+      if (alvos[i].status === 'pausado') pausados++;
+    }
+
+    var pctEstudos = total > 0 ? Math.round((estudando / total)*100) : 0;
+    var pctBatismos = total > 0 ? Math.round((batizados / total)*100) : 0;
+    
+    var fContainer = document.getElementById('funil-container');
+    if(fContainer) {
+      fContainer.innerHTML = 
+        '<div class="funil-container">' +
+          '<div class="funil-step"><div class="funil-num">' + total + '</div><div class="funil-label">Contatos</div></div>' +
+          '<div class="funil-step"><div class="funil-num">' + estudando + '</div><div class="funil-label">Estudos</div><div class="funil-pct">' + pctEstudos + '%</div></div>' +
+          '<div class="funil-step"><div class="funil-num" style="color:#2ec46b">' + batizados + '</div><div class="funil-label">Batizados</div><div class="funil-pct" style="background:#2ec46b; color:white;">' + pctBatismos + '%</div></div>' +
+        '</div>';
+    }
+
+    document.getElementById('stats-row').innerHTML =
+      '<div class="stat-box"><div class="stat-num" style="color:#f39c12">' + interessados + '</div><div class="stat-label">Interessados</div></div>' +
+      '<div class="stat-box"><div class="stat-num" style="color:#e67e22">' + pausados + '</div><div class="stat-label">Pausados</div></div>';
+
+    renderMetas();
+
+    var lista = document.getElementById('lista-alvos');
+    var busca = (document.getElementById('busca') ? document.getElementById('busca').value : '').toLowerCase();
+    var html = '';
+    var contadorExibidos = 0;
+
+    for (var i = 0; i < alvos.length; i++) {
+      var a = alvos[i];
+      if (filtroAtual !== 'todos' && a.status !== filtroAtual) continue;
+      
+      var sNome = a.nome ? String(a.nome).toLowerCase() : '';
+      var sInst = a.instrutor ? String(a.instrutor).toLowerCase() : '';
+      var sIgreja = a.igreja ? String(a.igreja).toLowerCase() : '';
+      var sClasse = a.classe ? "classe " + String(a.classe).toLowerCase() : '';
+      
+      if (sNome.indexOf(busca) > -1 || sInst.indexOf(busca) > -1 || sIgreja.indexOf(busca) > -1 || sClasse.indexOf(busca) > -1) {
+         contadorExibidos++;
+         
+         var diasInativo = calcularDiasInativo(a.dataAtualizacao);
+         var isInativo = (diasInativo >= 15 && a.status !== 'batizado' && a.status !== 'pausado');
+         var cartaoCss = a.status === 'batizado' ? 'batizado' : (a.status === 'pausado' ? 'pausado' : (isInativo ? 'inativo' : ''));
+         
+         var labelClasse = a.classe ? 'Classe ' + a.classe : 'Sem Classe';
+         var classeCss = a.classe ? 'classe-' + a.classe : 'classe-nenhuma';
+         var alertaBadge = isInativo ? '<span class="inativo-badge">⚠️ Inativo há ' + diasInativo + ' dias</span>' : '';
+
+         var htmlHistorico = '';
+         if(a.historico && a.historico.length > 0) {
+           var lastIndex = a.historico.length - 1;
+           htmlHistorico = '<div class="alvo-obs"><strong>Última nota (' + formatarDataHoraPT(a.historico[lastIndex].dataISO) + '):</strong> ' + escapeHTML(a.historico[lastIndex].texto) + '</div>';
+         }
+
+         html += '<div class="alvo-card ' + cartaoCss + '">' +
+           '<div class="alvo-nome">' + escapeHTML(a.nome) + '</div>' +
+           '<div class="alvo-badges">' +
+             '<span class="alvo-status status-' + a.status + '">' + statusLabel(a.status) + '</span>' +
+             '<span class="classe-badge ' + classeCss + '">' + labelClasse + '</span>' +
+             alertaBadge +
+           '</div>' +
+           '<div class="alvo-info">' +
+             (a.igreja ? '⛪ <strong>Igreja:</strong> ' + escapeHTML(a.igreja) + '<br>' : '') +
+             (a.idade ? '👤 <strong>Idade:</strong> ' + escapeHTML(a.idade) + ' anos<br>' : '') +
+             (a.telefone ? '📞 <strong>Tel:</strong> ' + escapeHTML(a.telefone) + '<br>' : '') +
+             (a.instrutor ? '📖 <strong>Instrutor:</strong> ' + escapeHTML(a.instrutor) + '<br>' : '') +
+           '</div>' +
+           htmlHistorico +
+           '<div class="btn-row">' +
+             '<button class="btn btn-success" onclick="abrirEdicao(\'' + a.id + '\')">✏️ Ver Detalhes / Histórico</button>' +
+             '<button class="btn btn-danger btn-small admin-only-inline" onclick="excluir(\'' + a.id + '\')">🗑️ Excluir</button>' +
+           '</div>' +
+         '</div>';
+      }
+    }
+    lista.innerHTML = (contadorExibidos === 0) ? '<div class="empty-msg">Nenhum registro encontrado na nuvem.</div>' : html;
+  }
+
+  // ----------- CRUD DE CANDIDATOS (NUVEM FIRESTORE) -----------
+  function salvarAlvo(e) {
+    e.preventDefault();
+    if(!document.body.classList.contains('is-admin')) return;
+
+    var nome = document.getElementById('inp-nome').value.trim();
+    var igreja = document.getElementById('inp-igreja').value;
+    if (!nome || !igreja) return;
+
+    var primeiraNotaText = document.getElementById('inp-obs').value.trim();
+    var historicoArr = [];
+    if(primeiraNotaText !== '') {
+      historicoArr.push({ dataISO: new Date().toISOString(), texto: primeiraNotaText });
+    }
+
+    var novoAlvo = {
+      nome: nome,
+      telefone: document.getElementById('inp-telefone').value.trim(),
+      idade: document.getElementById('inp-idade').value.trim(),
+      igreja: igreja,
+      classe: document.getElementById('inp-classe').value,
+      instrutor: document.getElementById('inp-instrutor').value.trim(),
+      endereco: document.getElementById('inp-endereco').value.trim(),
+      status: document.getElementById('inp-status').value,
+      data: document.getElementById('inp-data').value,
+      dataAtualizacao: new Date().toISOString(),
+      historico: historicoArr
+    };
+
+    db.collection("alvos").add(novoAlvo).then(function() {
+      document.getElementById('form-cadastro').reset();
+      alert("Alvo salvo e sincronizado na nuvem! 🚀");
+      showTab('lista');
+    });
+  }
+
+  function excluir(id) {
+    if(!document.body.classList.contains('is-admin')) return;
+    if (confirm('Apagar este registro da nuvem permanentemente? Todos os líderes perderão acesso.')) {
+       db.collection("alvos").doc(id).delete();
+    }
+  }
+
+  function abrirEdicao(id) {
+    editandoId = id;
+    var alvo = null;
+    for(var i=0; i<alvos.length; i++) { if(alvos[i].id === id) { alvo = alvos[i]; break; } }
+    if(!alvo) return;
+
+    document.getElementById('edit-nome').value = alvo.nome;
+    document.getElementById('edit-telefone').value = alvo.telefone || '';
+    document.getElementById('edit-idade').value = alvo.idade || '';
+    document.getElementById('edit-classe').value = alvo.classe || '';
+    document.getElementById('edit-instrutor').value = alvo.instrutor || '';
+    document.getElementById('edit-endereco').value = alvo.endereco || '';
+    document.getElementById('edit-data').value = alvo.data || '';
+    
+    // Injetar opções de status dinamicamente para bloquear quem não é admin
+    var selectStatus = document.getElementById('edit-status');
+    var isUserAdmin = document.body.classList.contains('is-admin');
+    
+    if(isUserAdmin) {
+      selectStatus.removeAttribute('disabled');
+      selectStatus.innerHTML = 
+        '<option value="interessado">Interessado</option>' +
+        '<option value="estudando">Estudando a Bíblia</option>' +
+        '<option value="batizado">Batizado ✅</option>' +
+        '<option value="pausado">Pausado</option>';
+      selectStatus.value = alvo.status;
+    } else {
+      selectStatus.setAttribute('disabled', 'true');
+      selectStatus.innerHTML = '<option value="' + alvo.status + '">' + statusLabel(alvo.status) + '</option>';
+    }
+
+    var editIgreja = document.getElementById('edit-igreja');
+    editIgreja.value = alvo.igreja || '';
+    if(!isUserAdmin) editIgreja.setAttribute('disabled', 'true'); else editIgreja.removeAttribute('disabled');
+
+    // Desabilitar outros inputs se não for admin
+    var inputs = ['edit-nome', 'edit-telefone', 'edit-idade', 'edit-classe', 'edit-instrutor', 'edit-endereco', 'edit-data'];
+    for(var x=0; x<inputs.length; x++) {
+      if(!isUserAdmin) document.getElementById(inputs[x]).setAttribute('disabled', 'true');
+      else document.getElementById(inputs[x]).removeAttribute('disabled');
+    }
+
+    // Renderizar Histórico
+    var histContainer = document.getElementById('edit-historico-lista');
+    if(!alvo.historico || alvo.historico.length === 0) {
+      histContainer.innerHTML = '<div style="font-size:0.8rem; font-style:italic; color:var(--text-muted);">Nenhuma nota registrada na jornada.</div>';
+    } else {
+      var histHtml = '<div class="historico-box">';
+      for(var h = 0; h < alvo.historico.length; h++) {
+        histHtml += '<div class="historico-item"><div class="historico-data">' + formatarDataHoraPT(alvo.historico[h].dataISO) + '</div><div>' + escapeHTML(alvo.historico[h].texto) + '</div></div>';
+      }
+      histHtml += '</div>';
+      histContainer.innerHTML = histHtml;
+    }
+
+    document.getElementById('edit-nova-nota').value = '';
+    document.getElementById('modal-overlay').classList.add('open');
+    document.body.classList.add('modal-open');
+  }
+
+  function forcarFecharModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    document.body.classList.remove('modal-open');
+    editandoId = null;
+  }
+  function fecharModal(event) { if (event.target === document.getElementById('modal-overlay')) { forcarFecharModal(); } }
+
+  function salvarEdicao(e) {
+    e.preventDefault();
+    if(!document.body.classList.contains('is-admin')) return;
+
+    var idx = -1;
+    for(var i=0; i<alvos.length; i++) { if(alvos[i].id === editandoId) { idx = i; break; } }
+    if(idx === -1) return;
+
+    var nome = document.getElementById('edit-nome').value.trim();
+    var igreja = document.getElementById('edit-igreja').value;
+    if(!nome || !igreja) return;
+
+    var updateData = {
+      nome: nome,
+      telefone: document.getElementById('edit-telefone').value.trim(),
+      idade: document.getElementById('edit-idade').value.trim(),
+      igreja: igreja,
+      classe: document.getElementById('edit-classe').value,
+      instrutor: document.getElementById('edit-instrutor').value.trim(),
+      endereco: document.getElementById('edit-endereco').value.trim(),
+      status: document.getElementById('edit-status').value,
+      data: document.getElementById('edit-data').value,
+    };
+
+    var novaNota = document.getElementById('edit-nova-nota').value.trim();
+    var histAtual = alvos[idx].historico || [];
+    
+    if(novaNota !== '') {
+      histAtual.push({ dataISO: new Date().toISOString(), texto: novaNota });
+      updateData.historico = histAtual;
+      updateData.dataAtualizacao = new Date().toISOString(); // Reseta alerta
+    } else {
+      updateData.dataAtualizacao = new Date().toISOString();
+    }
+
+    db.collection("alvos").doc(editandoId).update(updateData).then(function() {
+      forcarFecharModal();
+    });
+  }
+
+  // ----------- UTILS DE TEMA -----------
+  function toggleTheme() {
+    var isDark = document.body.getAttribute('data-theme') === 'dark';
+    var newTheme = isDark ? 'light' : 'dark';
+    localStorage.setItem('tema_alvos', newTheme);
+    applyTheme(newTheme);
+  }
+  function applyTheme(theme) {
+    if(theme === 'dark') {
+      document.body.setAttribute('data-theme', 'dark');
+      document.getElementById('theme-btn').innerText = '☀️';
+    } else {
+      document.body.removeAttribute('data-theme');
+      document.getElementById('theme-btn').innerText = '🌙';
+    }
+  }
+  var savedTheme = localStorage.getItem('tema_alvos') || 'light';
+  applyTheme(savedTheme);
+</script>
+
+</body>
+</html>
